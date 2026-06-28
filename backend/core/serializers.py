@@ -227,16 +227,40 @@ class ActivityResultSerializer(serializers.ModelSerializer):
 class ActivityMediaSerializer(serializers.ModelSerializer):
     activity_name = serializers.CharField(source="activity.name", read_only=True)
     file_url = serializers.SerializerMethodField()
+    preview_url = serializers.SerializerMethodField()
+    download_url = serializers.SerializerMethodField()
 
     class Meta:
         model = ActivityMedia
-        fields = ["id", "activity", "activity_name", "title", "file", "file_url", "uploaded_at"]
+        fields = [
+            "id",
+            "activity",
+            "activity_name",
+            "title",
+            "file",
+            "file_url",
+            "preview_url",
+            "download_url",
+            "uploaded_at",
+        ]
 
     def get_file_url(self, obj):
         request = self.context.get("request")
         if request and obj.file:
             return request.build_absolute_uri(obj.file.url)
         return obj.file.url if obj.file else ""
+
+    def get_preview_url(self, obj):
+        request = self.context.get("request")
+        if not request:
+            return f"/api/activity-media/{obj.id}/preview/"
+        return request.build_absolute_uri(f"/api/activity-media/{obj.id}/preview/")
+
+    def get_download_url(self, obj):
+        request = self.context.get("request")
+        if not request:
+            return f"/api/activity-media/{obj.id}/download/"
+        return request.build_absolute_uri(f"/api/activity-media/{obj.id}/download/")
 
     def validate(self, attrs):
         activity = attrs.get("activity", getattr(self.instance, "activity", None))

@@ -168,7 +168,7 @@ export default function ActivityDetailPage() {
   }
 
   async function downloadMedia(file) {
-    const url = file.file_url || file.file;
+    const url = file.download_url || file.file_url || file.file;
     const response = await fetch(url);
     const blob = await response.blob();
     const objectUrl = URL.createObjectURL(blob);
@@ -324,8 +324,8 @@ export default function ActivityDetailPage() {
         <div className="media-list">
           {mediaFiles.map((file) => (
             <div className="media-item" key={file.id}>
-              <a className="media-preview" href={file.file_url || file.file} target="_blank" title="Открыть фото">
-                <img src={file.file_url || file.file} alt={file.title || "Фото"} />
+              <a className="media-preview" href={file.preview_url || file.file_url || file.file} target="_blank" title="Открыть фото">
+                <img src={file.preview_url || file.file_url || file.file} alt={file.title || "Фото"} />
               </a>
               <div className="media-info">
                 <b>{file.title || "Фото"}</b>

@@ -5,6 +5,8 @@ import { useEffect, useMemo, useState } from "react";
 import api, { logout } from "../api/client";
 import { CAN_VIEW_REPORTS, ROLES } from "../utils/roles";
 
+const logoUrl = `${import.meta.env.BASE_URL}logo-muiv.svg`;
+
 const menu = [
   { to: "/", label: "Панель", icon: Gauge },
   { to: "/campaigns", label: "Кампании", icon: Megaphone },
@@ -52,7 +54,7 @@ export default function AppLayout() {
       <header className="site-header">
         <div className="main-header">
           <a className="brand" href="/">
-            <img className="brand-logo-image" src="/logo-muiv.svg" alt="Московский университет имени С.Ю. Витте" />
+            <img className="brand-logo-image" src={logoUrl} alt="Московский университет имени С.Ю. Витте" />
             <span>
               <strong>Управление рекламными кампаниями</strong>
             </span>

@@ -1,6 +1,9 @@
 from django.contrib.auth.models import User
 from django.db.models import Count, Q, Sum
-from django.http import HttpResponse
+import mimetypes
+from pathlib import Path
+
+from django.http import FileResponse, Http404, HttpResponse
 from decimal import Decimal
 from io import BytesIO
 from openpyxl import Workbook
@@ -188,6 +191,36 @@ class ActivityMediaViewSet(viewsets.ModelViewSet):
     permission_classes = [IsManagerOrReadOnly]
     parser_classes = [MultiPartParser, FormParser]
     filterset_fields = ["activity"]
+
+    def get_permissions(self):
+        if self.action in {"preview", "download"}:
+            return [permissions.AllowAny()]
+        return super().get_permissions()
+
+    def open_media_file(self):
+        media = self.get_object()
+        if not media.file:
+            raise Http404("File is not attached.")
+        try:
+            return media, media.file.open("rb")
+        except FileNotFoundError as error:
+            raise Http404("File is not found on server storage.") from error
+
+    @decorators.action(detail=True, methods=["get"])
+    def preview(self, request, pk=None):
+        media, file_handle = self.open_media_file()
+        content_type = mimetypes.guess_type(media.file.name)[0] or "application/octet-stream"
+        return FileResponse(file_handle, content_type=content_type)
+
+    @decorators.action(detail=True, methods=["get"])
+    def download(self, request, pk=None):
+        media, file_handle = self.open_media_file()
+        filename = media.title.strip() if media.title else Path(media.file.name).name
+        if "." not in filename:
+            original_extension = Path(media.file.name).suffix
+            filename = f"{filename}{original_extension}"
+        content_type = mimetypes.guess_type(media.file.name)[0] or "application/octet-stream"
+        return FileResponse(file_handle, as_attachment=True, filename=filename, content_type=content_type)
 
 
 class MetricTypeViewSet(viewsets.ModelViewSet):
