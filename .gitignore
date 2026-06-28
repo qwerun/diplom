@@ -1,9 +1,11 @@
 .env
 .venv/
+.venv-win/
 venv/
 __pycache__/
 *.pyc
 db.sqlite3
+backend/staticfiles/
 node_modules/
 dist/
 backend/media/

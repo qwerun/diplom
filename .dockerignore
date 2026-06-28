@@ -1,0 +1,12 @@
+.git
+.agents
+.codex
+backend/.env
+backend/.venv
+backend/db.sqlite3
+backend/media
+frontend/node_modules
+frontend/dist
+__pycache__
+*.pyc
+.DS_Store
