@@ -169,19 +169,15 @@ export default function ActivityDetailPage() {
 
   async function downloadMedia(file) {
     const url = file.download_url || file.file_url || file.file;
-    const response = await fetch(url);
-    const blob = await response.blob();
-    const objectUrl = URL.createObjectURL(blob);
     const link = document.createElement("a");
     const fallbackName = decodeURIComponent(url.split("/").pop() || "photo");
     const extension = fallbackName.includes(".") ? `.${fallbackName.split(".").pop()}` : "";
     const title = file.title?.trim();
-    link.href = objectUrl;
+    link.href = url;
     link.download = title ? (title.includes(".") ? title : `${title}${extension}`) : fallbackName;
     document.body.appendChild(link);
     link.click();
     link.remove();
-    URL.revokeObjectURL(objectUrl);
   }
 
   if (!activity) return <p>Загрузка...</p>;
