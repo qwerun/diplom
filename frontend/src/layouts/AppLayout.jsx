@@ -81,6 +81,9 @@ export default function AppLayout() {
           <Outlet />
         </section>
       </main>
+      <footer className="site-footer">
+        Автор работы: <strong>Виноградов Роман Владимирович</strong>
+      </footer>
     </div>
   );
 }
