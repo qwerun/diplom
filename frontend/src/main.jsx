@@ -8,6 +8,7 @@ import CampaignDetailPage from "./pages/CampaignDetailPage.jsx";
 import CampaignsPage from "./pages/CampaignsPage.jsx";
 import DashboardPage from "./pages/DashboardPage.jsx";
 import DictionariesPage from "./pages/DictionariesPage.jsx";
+import ProfilePage from "./pages/ProfilePage.jsx";
 import LoginPage from "./pages/LoginPage.jsx";
 import ReportsPage from "./pages/ReportsPage.jsx";
 import UsersPage from "./pages/UsersPage.jsx";
@@ -39,6 +40,7 @@ createRoot(document.getElementById("root")).render(
           <Route path="reports" element={<ReportsPage />} />
           <Route path="users" element={<UsersPage />} />
           <Route path="dictionaries" element={<DictionariesPage />} />
+          <Route path="profile" element={<ProfilePage />} />
         </Route>
       </Routes>
     </BrowserRouter>
