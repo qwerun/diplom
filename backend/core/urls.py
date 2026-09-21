@@ -8,6 +8,7 @@ from .views import (
     AnalyticsViewSet,
     CampaignViewSet,
     ChannelViewSet,
+    PasswordChangeView,
     MetricSourceViewSet,
     MetricTypeViewSet,
     MetricValueViewSet,
@@ -36,4 +37,5 @@ router.register("analytics", AnalyticsViewSet, basename="analytics")
 
 urlpatterns = [
     path("me/", MeView.as_view(), name="me"),
+    path("me/change-password/", PasswordChangeView.as_view(), name="change-password"),
 ] + router.urls
