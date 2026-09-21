@@ -50,6 +50,12 @@ textarea:disabled {
 
 .app-shell {
   min-height: 100vh;
+  display: flex;
+  flex-direction: column;
+}
+
+.app-shell > main {
+  flex: 1;
 }
 
 .site-header {
@@ -894,11 +900,38 @@ textarea {
 }
 
 .login-page {
-  min-height: 100vh;
+  min-height: 0;
+  flex: 1;
   display: grid;
   place-items: center;
   padding: 20px;
   background: #eef2f5;
+}
+
+.login-shell {
+  min-height: 100vh;
+  display: flex;
+  flex-direction: column;
+  background: #eef2f5;
+}
+
+.site-footer {
+  padding: 18px 24px;
+  border-top: 1px solid var(--line);
+  background: #fff;
+  color: var(--muted);
+  font-size: 14px;
+  line-height: 1.4;
+  text-align: center;
+}
+
+.site-footer strong {
+  color: var(--text);
+  font-weight: 600;
+}
+
+.login-footer {
+  background: transparent;
 }
 
 .login-card {
