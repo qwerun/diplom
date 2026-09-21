@@ -46,7 +46,6 @@ class Command(BaseCommand):
             ("Telegram", "https://t.me/"),
             ("Официальный сайт", "https://muiv.ru/"),
             ("Email-рассылка", ""),
-            ("Яндекс.Директ", "https://direct.yandex.ru/"),
         ]
         for name, url in channels:
             Channel.objects.get_or_create(name=name, defaults={"url": url})
@@ -54,7 +53,6 @@ class Command(BaseCommand):
         sources = [
             ("ВКонтакте", "API"),
             ("Telegram", "API"),
-            ("Яндекс.Метрика", "API"),
             ("Ручной ввод", "MANUAL"),
         ]
         for name, source_type in sources:
