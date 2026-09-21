@@ -41,6 +41,8 @@ from .serializers import (
     ActivitySerializer,
     CampaignSerializer,
     ChannelSerializer,
+    PasswordChangeSerializer,
+    UserSelfUpdateSerializer,
     MetricSourceSerializer,
     MetricTypeSerializer,
     MetricValueSerializer,
@@ -55,6 +57,12 @@ class MeView(APIView):
     permission_classes = [permissions.IsAuthenticated]
 
     def get(self, request):
+        return response.Response(UserSerializer(request.user).data)
+
+    def patch(self, request):
+        serializer = UserSelfUpdateSerializer(request.user, data=request.data, partial=True)
+        serializer.is_valid(raise_exception=True)
+        serializer.save()
         return response.Response(UserSerializer(request.user).data)
 
 
@@ -410,3 +418,14 @@ class AnalyticsViewSet(viewsets.ViewSet):
                 .order_by("metric_type__name")
             ),
         }
+
+
+class PasswordChangeView(APIView):
+    permission_classes = [permissions.IsAuthenticated]
+
+    def post(self, request):
+        serializer = PasswordChangeSerializer(data=request.data, context={"request": request})
+        serializer.is_valid(raise_exception=True)
+        request.user.set_password(serializer.validated_data["new_password"])
+        request.user.save(update_fields=["password"])
+        return response.Response({"detail": "Пароль изменён."})
