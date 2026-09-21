@@ -50,7 +50,6 @@ def fetch_vk_metrics(result_url):
         raise MetricApiError(message)
 
     response = data.get("response", [])
-    print('response', response)
     items = response.get("items", []) if isinstance(response, dict) else []
     post = items[0] if items else None
 
