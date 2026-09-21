@@ -1,4 +1,4 @@
-import { BookOpen, FolderKanban, Gauge, LogOut, Megaphone, Users } from "lucide-react";
+import { BookOpen, FolderKanban, Gauge, LogOut, Megaphone, UserRound, Users } from "lucide-react";
 import { NavLink, Outlet, useLocation, useNavigate } from "react-router-dom";
 import { useEffect, useMemo, useState } from "react";
 
@@ -13,6 +13,7 @@ const menu = [
   { to: "/reports", label: "Отчеты", icon: BookOpen, roles: CAN_VIEW_REPORTS },
   { to: "/users", label: "Пользователи", icon: Users, adminOnly: true },
   { to: "/dictionaries", label: "Справочники", icon: FolderKanban, adminOnly: true },
+  { to: "/profile", label: "Личный кабинет", icon: UserRound },
 ];
 
 export default function AppLayout() {
