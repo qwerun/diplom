@@ -20,21 +20,26 @@ export default function LoginPage() {
   }
 
   return (
-    <main className="login-page">
-      <form className="login-card" onSubmit={handleSubmit}>
-        <div className="brand-mark">МУИВ</div>
-        <h1>Рекламные кампании университета</h1>
-        <label>
-          Логин
-          <input value={form.username} onChange={(e) => setForm({ ...form, username: e.target.value })} />
-        </label>
-        <label>
-          Пароль
-          <input type="password" value={form.password} onChange={(e) => setForm({ ...form, password: e.target.value })} />
-        </label>
-        {error && <p className="error-text">{error}</p>}
-        <button className="primary-button">Войти</button>
-      </form>
-    </main>
+    <div className="login-shell">
+      <main className="login-page">
+        <form className="login-card" onSubmit={handleSubmit}>
+          <div className="brand-mark">МУИВ</div>
+          <h1>Рекламные кампании университета</h1>
+          <label>
+            Логин
+            <input value={form.username} onChange={(e) => setForm({ ...form, username: e.target.value })} />
+          </label>
+          <label>
+            Пароль
+            <input type="password" value={form.password} onChange={(e) => setForm({ ...form, password: e.target.value })} />
+          </label>
+          {error && <p className="error-text">{error}</p>}
+          <button className="primary-button">Войти</button>
+        </form>
+      </main>
+      <footer className="site-footer login-footer">
+        Автор работы: <strong>Виноградов Роман Владимирович</strong>
+      </footer>
+    </div>
   );
 }
