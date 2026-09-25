@@ -24,19 +24,12 @@ from .models import (
 )
 
 
-DEFAULT_CAMPAIGN_STATUS = "Черновик"
-DEFAULT_ACTIVITY_STATUS = "Запланирована"
-CLOSED_CAMPAIGN_STATUSES = {"Завершена", "Отменена"}
-CLOSED_ACTIVITY_STATUSES = {"Выполнена", "Отменена"}
-
-
-def default_status(entity_type, preferred_name):
-    """Возвращает статус по умолчанию для создания сущности без выбора статуса на фронте."""
-    status = Status.objects.filter(entity_type=entity_type, name=preferred_name).first()
-    fallback = status or Status.objects.filter(entity_type=entity_type).first()
-    if not fallback:
-        raise serializers.ValidationError("Сначала добавьте стартовый статус в справочник.")
-    return fallback
+def default_status(entity_type):
+    """Возвращает статус, явно отмеченный как начальный для типа сущности."""
+    status = Status.objects.filter(entity_type=entity_type, is_initial=True).first()
+    if not status:
+        raise serializers.ValidationError("Для этого типа сущности не настроен начальный статус.")
+    return status
 
 
 class UserProfileSerializer(serializers.ModelSerializer):
@@ -87,6 +80,29 @@ class StatusSerializer(serializers.ModelSerializer):
     class Meta:
         model = Status
         fields = "__all__"
+
+    def validate(self, attrs):
+        entity_type = attrs.get("entity_type", getattr(self.instance, "entity_type", None))
+        code = (attrs.get("code", getattr(self.instance, "code", "")) or "").strip()
+
+        if not code:
+            raise serializers.ValidationError({"code": "Укажите системный код статуса."})
+        attrs["code"] = code
+        if self.instance and "code" in attrs and code != self.instance.code:
+            raise serializers.ValidationError({"code": "Системный код нельзя изменять после создания статуса."})
+        if self.instance and "entity_type" in attrs and entity_type != self.instance.entity_type:
+            raise serializers.ValidationError({"entity_type": "Тип сущности нельзя изменять после создания статуса."})
+        if Status.objects.exclude(pk=getattr(self.instance, "pk", None)).filter(
+            entity_type=entity_type,
+            code=code,
+        ).exists():
+            raise serializers.ValidationError({"code": "Такой системный код уже используется для этого типа сущности."})
+        if attrs.get("is_initial") and Status.objects.exclude(pk=getattr(self.instance, "pk", None)).filter(
+            entity_type=entity_type,
+            is_initial=True,
+        ).exists():
+            raise serializers.ValidationError({"is_initial": "Для этого типа сущности уже назначен начальный статус."})
+        return attrs
 
 
 class StatusTransitionSerializer(serializers.ModelSerializer):
@@ -194,7 +210,7 @@ class CampaignSerializer(serializers.ModelSerializer):
     def create(self, validated_data):
         validated_data.setdefault(
             "status",
-            default_status(Status.ENTITY_CAMPAIGN, DEFAULT_CAMPAIGN_STATUS),
+            default_status(Status.ENTITY_CAMPAIGN),
         )
         return super().create(validated_data)
     
@@ -237,7 +253,7 @@ class ActivitySerializer(serializers.ModelSerializer):
         metric_source = attrs.get("metric_source")
         new_status = attrs.get("status")
 
-        if campaign and campaign.status.name in CLOSED_CAMPAIGN_STATUSES:
+        if campaign and campaign.status.is_terminal:
             raise serializers.ValidationError("В завершенную или отмененную кампанию нельзя добавлять и менять активности.")
         if new_status and new_status.entity_type != Status.ENTITY_ACTIVITY:
             raise serializers.ValidationError("Для активности выбран неподходящий тип статуса.")
@@ -248,12 +264,12 @@ class ActivitySerializer(serializers.ModelSerializer):
             ).exists()
             if not exists:
                 raise serializers.ValidationError("Такой переход статуса для активности не настроен.")
-        if self.instance and self.instance.status.name == "В работе":
+        if self.instance and self.instance.status.locks_fields and not self.instance.status.is_terminal:
             if channel and channel != self.instance.channel:
                 raise serializers.ValidationError("У активности в работе нельзя менять канал.")
             if metric_source and metric_source != self.instance.metric_source:
                 raise serializers.ValidationError("У активности в работе нельзя менять источник метрик.")
-        if self.instance and self.instance.status.name in CLOSED_ACTIVITY_STATUSES:
+        if self.instance and self.instance.status.is_terminal:
             edited_fields = set(attrs.keys()) - {"status"}
             if edited_fields:
                 raise serializers.ValidationError("Закрытую активность нельзя редактировать, кроме смены статуса по переходам.")
@@ -262,7 +278,7 @@ class ActivitySerializer(serializers.ModelSerializer):
     def create(self, validated_data):
         validated_data.setdefault(
             "status",
-            default_status(Status.ENTITY_ACTIVITY, DEFAULT_ACTIVITY_STATUS),
+            default_status(Status.ENTITY_ACTIVITY),
         )
         return super().create(validated_data)
 
@@ -276,8 +292,8 @@ class ActivityResultSerializer(serializers.ModelSerializer):
 
     def validate(self, attrs):
         activity = attrs.get("activity", getattr(self.instance, "activity", None))
-        if activity and activity.status.name == "Отменена":
-            raise serializers.ValidationError("Для отмененной активности нельзя менять результат.")
+        if activity and activity.status.is_terminal:
+            raise serializers.ValidationError("Для закрытой активности нельзя менять результат.")
         return attrs
 
 
@@ -370,8 +386,8 @@ class MetricValueSerializer(serializers.ModelSerializer):
         activity = attrs.get("activity", getattr(self.instance, "activity", None))
         planned = attrs.get("planned_value", getattr(self.instance, "planned_value", 0))
         actual = attrs.get("actual_value", getattr(self.instance, "actual_value", 0))
-        if activity and activity.status.name == "Отменена":
-            raise serializers.ValidationError("Для отмененной активности нельзя менять метрики.")
+        if activity and activity.status.is_terminal:
+            raise serializers.ValidationError("Для закрытой активности нельзя менять метрики.")
         if planned < 0 or actual < 0:
             raise serializers.ValidationError("Значения метрик не могут быть отрицательными.")
         return attrs

@@ -32,7 +32,7 @@ export default function DictionariesPage() {
   const [channelForm, setChannelForm] = useState({ name: "", url: "" });
   const [sourceForm, setSourceForm] = useState({ name: "", type: "MANUAL", is_active: true });
   const [typeForm, setTypeForm] = useState({ name: "", unit: "" });
-  const [statusForm, setStatusForm] = useState({ name: "", entity_type: "campaign" });
+  const [statusForm, setStatusForm] = useState({ name: "", entity_type: "campaign", code: "", is_initial: false, is_terminal: false, locks_fields: false });
 
   function load() {
     api.get("/channels/").then((res) => setChannels(asList(res.data)));
@@ -91,7 +91,11 @@ export default function DictionariesPage() {
       rows: statuses,
       columns: [
         { key: "name", title: "Название" },
+        { key: "code", title: "Системный код" },
         { key: "entity_type", title: "Сущность", render: (row) => entityLabels[row.entity_type] || row.entity_type },
+        { key: "is_initial", title: "Начальный", render: (row) => row.is_initial ? "Да" : "Нет" },
+        { key: "is_terminal", title: "Конечный", render: (row) => row.is_terminal ? "Да" : "Нет" },
+        { key: "locks_fields", title: "Блокирует поля", render: (row) => row.locks_fields ? "Да" : "Нет" },
         { key: "actions", title: "Действия", render: (row) => actions(row) },
       ],
     };
@@ -110,7 +114,7 @@ export default function DictionariesPage() {
     setChannelForm({ name: "", url: "" });
     setSourceForm({ name: "", type: "MANUAL", is_active: true });
     setTypeForm({ name: "", unit: "" });
-    setStatusForm({ name: "", entity_type: "campaign" });
+    setStatusForm({ name: "", entity_type: "campaign", code: "", is_initial: false, is_terminal: false, locks_fields: false });
   }
 
   function openCreate() {
@@ -124,7 +128,14 @@ export default function DictionariesPage() {
     if (activeSection === "channels") setChannelForm({ name: row.name, url: row.url || "" });
     if (activeSection === "sources") setSourceForm({ name: row.name, type: row.type, is_active: row.is_active });
     if (activeSection === "types") setTypeForm({ name: row.name, unit: row.unit });
-    if (activeSection === "statuses") setStatusForm({ name: row.name, entity_type: row.entity_type });
+    if (activeSection === "statuses") setStatusForm({
+      name: row.name,
+      entity_type: row.entity_type,
+      code: row.code || "",
+      is_initial: Boolean(row.is_initial),
+      is_terminal: Boolean(row.is_terminal),
+      locks_fields: Boolean(row.locks_fields),
+    });
     setModalOpen(true);
   }
 
@@ -325,7 +336,11 @@ export default function DictionariesPage() {
             {activeSection === "statuses" && (
               <div className="modal-grid">
                 <label>Название<input required value={statusForm.name} onChange={(e) => setStatusForm({ ...statusForm, name: e.target.value })} /></label>
-                <label>Сущность<select value={statusForm.entity_type} onChange={(e) => setStatusForm({ ...statusForm, entity_type: e.target.value })}><option value="campaign">Кампания</option><option value="activity">Активность</option></select></label>
+                <label>Системный код<input required disabled={Boolean(editingItem)} placeholder="например, approval" value={statusForm.code} onChange={(e) => setStatusForm({ ...statusForm, code: e.target.value.toLowerCase().replace(/[^a-z0-9_-]/g, "_") })} /></label>
+                <label>Сущность<select disabled={Boolean(editingItem)} value={statusForm.entity_type} onChange={(e) => setStatusForm({ ...statusForm, entity_type: e.target.value })}><option value="campaign">Кампания</option><option value="activity">Активность</option></select></label>
+                <label className="checkbox-row"><input type="checkbox" checked={statusForm.is_initial} onChange={(e) => setStatusForm({ ...statusForm, is_initial: e.target.checked })} />Начальный статус</label>
+                <label className="checkbox-row"><input type="checkbox" checked={statusForm.is_terminal} onChange={(e) => setStatusForm({ ...statusForm, is_terminal: e.target.checked })} />Конечный статус</label>
+                <label className="checkbox-row"><input type="checkbox" checked={statusForm.locks_fields} onChange={(e) => setStatusForm({ ...statusForm, locks_fields: e.target.checked })} />Блокирует редактирование полей</label>
               </div>
             )}
 
