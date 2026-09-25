@@ -42,7 +42,7 @@ export default function ReportsPage() {
   }
 
   async function downloadReport(row) {
-    const response = await api.get(row.file_path, { responseType: "blob" });
+    const response = await api.get(`/reports/${row.id}/xlsx/`, { responseType: "blob" });
     const url = URL.createObjectURL(response.data);
     const link = document.createElement("a");
     link.href = url;

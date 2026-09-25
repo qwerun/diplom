@@ -330,7 +330,7 @@ class ReportViewSet(viewsets.ModelViewSet):
             generated_by=request.user,
         )
         report.campaigns.set(campaigns)
-        report.file_path = f"/api/reports/{report.id}/xlsx/"
+        report.file_path = f"/reports/{report.id}/xlsx/"
         report.save(update_fields=["file_path"])
         return response.Response(
             ReportSerializer(report, context={"request": request}).data,
