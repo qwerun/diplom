@@ -357,11 +357,40 @@ class MetricValueSerializer(serializers.ModelSerializer):
 
 
 class ReportSerializer(serializers.ModelSerializer):
-    campaign_name = serializers.CharField(source="campaign.name", read_only=True)
+    campaign_name = serializers.SerializerMethodField()
+    campaign_names = serializers.SerializerMethodField()
+    campaign_ids = serializers.SerializerMethodField()
+    generated_by_name = serializers.SerializerMethodField()
 
     class Meta:
         model = Report
-        fields = "__all__"
+        fields = [
+            "id",
+            "campaign",
+            "campaign_name",
+            "campaigns",
+            "campaign_ids",
+            "campaign_names",
+            "generated_by",
+            "generated_by_name",
+            "create_date",
+            "file_path",
+        ]
+        read_only_fields = fields
+
+    def get_campaign_name(self, obj):
+        return obj.campaign.name if obj.campaign else ""
+
+    def get_campaign_ids(self, obj):
+        return list(obj.campaigns.values_list("id", flat=True))
+
+    def get_campaign_names(self, obj):
+        return list(obj.campaigns.values_list("name", flat=True))
+
+    def get_generated_by_name(self, obj):
+        if not obj.generated_by:
+            return ""
+        return obj.generated_by.get_full_name() or obj.generated_by.username
 
 
 class UserSelfUpdateSerializer(serializers.ModelSerializer):

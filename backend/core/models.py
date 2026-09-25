@@ -258,7 +258,21 @@ class MetricValue(models.Model):
 
 
 class Report(models.Model):
-    campaign = models.ForeignKey(Campaign, on_delete=models.CASCADE, related_name="reports")
+    campaign = models.ForeignKey(
+        Campaign,
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True,
+        related_name="legacy_reports",
+    )
+    campaigns = models.ManyToManyField(Campaign, related_name="reports", blank=True)
+    generated_by = models.ForeignKey(
+        User,
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True,
+        related_name="generated_reports",
+    )
     create_date = models.DateTimeField(auto_now_add=True)
     file_path = models.CharField(max_length=255, blank=True)
 
@@ -266,4 +280,9 @@ class Report(models.Model):
         ordering = ["-create_date"]
 
     def __str__(self):
-        return f"Отчет по кампании {self.campaign.name}"
+        campaign_names = ", ".join(self.campaigns.values_list("name", flat=True))
+        if campaign_names:
+            return f"Отчет по кампаниям: {campaign_names}"
+        if self.campaign:
+            return f"Отчет по кампании {self.campaign.name}"
+        return f"Отчет №{self.pk}"
