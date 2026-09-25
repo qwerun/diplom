@@ -123,6 +123,15 @@ class Campaign(models.Model):
         related_name="campaigns",
     )
 
+    executor = models.ForeignKey(
+        User,
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True,
+        related_name="assigned_campaigns",
+        limit_choices_to={"profile__role": "executor"},
+    )
+    
     class Meta:
         ordering = ["-start_date", "name"]
 
