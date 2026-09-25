@@ -1,7 +1,12 @@
+import mimetypes
+from pathlib import Path
+
 from django.contrib.auth.models import User
 from django.contrib.auth.password_validation import validate_password
 from django.core.exceptions import ValidationError as DjangoValidationError
 from rest_framework import serializers
+
+from .permissions import user_role
 
 from .models import (
     Activity,
@@ -21,17 +26,24 @@ from .models import (
 
 DEFAULT_CAMPAIGN_STATUS = "Черновик"
 DEFAULT_ACTIVITY_STATUS = "Запланирована"
-CLOSED_CAMPAIGN_STATUSES = {"Завершена", "Отменена"}
-CLOSED_ACTIVITY_STATUSES = {"Выполнена", "Отменена"}
 
 
 def default_status(entity_type, preferred_name):
-    """Возвращает статус по умолчанию для создания сущности без выбора статуса на фронте."""
-    status = Status.objects.filter(entity_type=entity_type, name=preferred_name).first()
+    """Возвращает явно отмеченный стартовый статус, сохраняя fallback для старых баз."""
+    status = Status.objects.filter(entity_type=entity_type, is_initial=True).first()
+    status = status or Status.objects.filter(entity_type=entity_type, name=preferred_name).first()
     fallback = status or Status.objects.filter(entity_type=entity_type).first()
     if not fallback:
         raise serializers.ValidationError("Сначала добавьте стартовый статус в справочник.")
     return fallback
+
+
+
+def validate_executor_assignment(activity, context):
+    request = context.get("request")
+    if request and user_role(request.user) == UserProfile.ROLE_EXECUTOR:
+        if not activity or activity.campaign.executor_id != request.user.id:
+            raise serializers.ValidationError("Операция доступна только для назначенной кампании.")
 
 
 class UserProfileSerializer(serializers.ModelSerializer):
@@ -83,6 +95,21 @@ class StatusSerializer(serializers.ModelSerializer):
         model = Status
         fields = "__all__"
 
+    def validate(self, attrs):
+        entity_type = attrs.get("entity_type", getattr(self.instance, "entity_type", None))
+        code = attrs.get("code", getattr(self.instance, "code", "")).strip()
+        if self.instance and "code" in attrs and code != self.instance.code:
+            raise serializers.ValidationError({"code": "Системный код статуса нельзя изменять после создания."})
+        if code and Status.objects.exclude(pk=getattr(self.instance, "pk", None)).filter(
+            entity_type=entity_type, code=code
+        ).exists():
+            raise serializers.ValidationError({"code": "Такой системный код уже используется для этого типа."})
+        if attrs.get("is_initial") and Status.objects.exclude(pk=getattr(self.instance, "pk", None)).filter(
+            entity_type=entity_type, is_initial=True
+        ).exists():
+            raise serializers.ValidationError({"is_initial": "Для этого типа уже задан стартовый статус."})
+        return attrs
+
 
 class StatusTransitionSerializer(serializers.ModelSerializer):
     from_status_name = serializers.CharField(source="from_status.name", read_only=True)
@@ -121,6 +148,15 @@ class CampaignSerializer(serializers.ModelSerializer):
         source="responsible_user.get_full_name", read_only=True
     )
     status_name = serializers.CharField(source="status.name", read_only=True)
+    status_is_initial = serializers.BooleanField(source="status.is_initial", read_only=True)
+    status_is_terminal = serializers.BooleanField(source="status.is_terminal", read_only=True)
+    status_locks_fields = serializers.BooleanField(source="status.locks_fields", read_only=True)
+    executor_name = serializers.SerializerMethodField()
+
+    def get_executor_name(self, obj):
+        if not obj.executor:
+            return ""
+        return obj.executor.get_full_name() or obj.executor.username
 
     class Meta:
         model = Campaign
@@ -135,6 +171,9 @@ class CampaignSerializer(serializers.ModelSerializer):
         end_date = attrs.get("end_date", getattr(self.instance, "end_date", None))
         budget = attrs.get("budget", getattr(self.instance, "budget", 0))
         new_status = attrs.get("status")
+        executor = attrs.get("executor", getattr(self.instance, "executor", None))
+        if executor and getattr(getattr(executor, "profile", None), "role", None) != UserProfile.ROLE_EXECUTOR:
+            raise serializers.ValidationError({"executor": "Назначить можно только пользователя с ролью «Исполнитель»."})
         if budget < 0:
             raise serializers.ValidationError("Бюджет не может быть отрицательным.")
         if start_date and end_date and end_date < start_date:
@@ -164,6 +203,9 @@ class ActivitySerializer(serializers.ModelSerializer):
     campaign_name = serializers.CharField(source="campaign.name", read_only=True)
     channel_name = serializers.CharField(source="channel.name", read_only=True)
     status_name = serializers.CharField(source="status.name", read_only=True)
+    status_is_initial = serializers.BooleanField(source="status.is_initial", read_only=True)
+    status_is_terminal = serializers.BooleanField(source="status.is_terminal", read_only=True)
+    status_locks_fields = serializers.BooleanField(source="status.locks_fields", read_only=True)
     metric_source_name = serializers.CharField(source="metric_source.name", read_only=True)
     metric_source_type = serializers.CharField(source="metric_source.type", read_only=True)
     metric_source_type_display = serializers.CharField(source="metric_source.get_type_display", read_only=True)
@@ -182,7 +224,7 @@ class ActivitySerializer(serializers.ModelSerializer):
         metric_source = attrs.get("metric_source")
         new_status = attrs.get("status")
 
-        if campaign and campaign.status.name in CLOSED_CAMPAIGN_STATUSES:
+        if campaign and campaign.status.is_terminal:
             raise serializers.ValidationError("В завершенную или отмененную кампанию нельзя добавлять и менять активности.")
         if new_status and new_status.entity_type != Status.ENTITY_ACTIVITY:
             raise serializers.ValidationError("Для активности выбран неподходящий тип статуса.")
@@ -193,12 +235,12 @@ class ActivitySerializer(serializers.ModelSerializer):
             ).exists()
             if not exists:
                 raise serializers.ValidationError("Такой переход статуса для активности не настроен.")
-        if self.instance and self.instance.status.name == "В работе":
+        if self.instance and self.instance.status.locks_fields:
             if channel and channel != self.instance.channel:
                 raise serializers.ValidationError("У активности в работе нельзя менять канал.")
             if metric_source and metric_source != self.instance.metric_source:
                 raise serializers.ValidationError("У активности в работе нельзя менять источник метрик.")
-        if self.instance and self.instance.status.name in CLOSED_ACTIVITY_STATUSES:
+        if self.instance and self.instance.status.is_terminal:
             edited_fields = set(attrs.keys()) - {"status"}
             if edited_fields:
                 raise serializers.ValidationError("Закрытую активность нельзя редактировать, кроме смены статуса по переходам.")
@@ -221,7 +263,8 @@ class ActivityResultSerializer(serializers.ModelSerializer):
 
     def validate(self, attrs):
         activity = attrs.get("activity", getattr(self.instance, "activity", None))
-        if activity and activity.status.name == "Отменена":
+        validate_executor_assignment(activity, self.context)
+        if activity and activity.status.is_terminal:
             raise serializers.ValidationError("Для отмененной активности нельзя менять результат.")
         return attrs
 
@@ -231,6 +274,7 @@ class ActivityMediaSerializer(serializers.ModelSerializer):
     file_url = serializers.SerializerMethodField()
     preview_url = serializers.SerializerMethodField()
     download_url = serializers.SerializerMethodField()
+    content_type = serializers.SerializerMethodField()
 
     class Meta:
         model = ActivityMedia
@@ -243,14 +287,19 @@ class ActivityMediaSerializer(serializers.ModelSerializer):
             "file_url",
             "preview_url",
             "download_url",
+            "content_type",
             "uploaded_at",
         ]
+        extra_kwargs = {"file": {"write_only": True}}
 
     def get_file_url(self, obj):
         request = self.context.get("request")
         if request and obj.file:
             return request.build_absolute_uri(obj.file.url)
         return obj.file.url if obj.file else ""
+
+    def get_content_type(self, obj):
+        return mimetypes.guess_type(obj.file.name)[0] or "application/octet-stream"
 
     def get_preview_url(self, obj):
         request = self.context.get("request")
@@ -266,16 +315,23 @@ class ActivityMediaSerializer(serializers.ModelSerializer):
 
     def validate(self, attrs):
         activity = attrs.get("activity", getattr(self.instance, "activity", None))
-        if activity and activity.status.name == "Отменена":
+        validate_executor_assignment(activity, self.context)
+        if activity and activity.status.is_terminal:
             raise serializers.ValidationError("К отмененной активности нельзя прикреплять медиафайлы.")
         return attrs
 
     def validate_file(self, value):
-        # Временный учебный комментарий: фронт тоже принимает только image/*,
-        # но окончательная проверка типа файла обязательно остается на backend.
-        content_type = getattr(value, "content_type", "")
-        if content_type and not content_type.startswith("image/"):
-            raise serializers.ValidationError("Можно загружать только изображения.")
+        allowed_extensions = {
+            ".png", ".jpg", ".jpeg", ".gif", ".webp",
+            ".pdf", ".doc", ".docx", ".xls", ".xlsx", ".txt", ".zip",
+        }
+        extension = Path(value.name).suffix.lower()
+        if extension not in allowed_extensions:
+            raise serializers.ValidationError(
+                "Разрешены изображения, PDF, документы Word, таблицы Excel, TXT и ZIP."
+            )
+        if value.size > 10 * 1024 * 1024:
+            raise serializers.ValidationError("Размер файла не должен превышать 10 МБ.")
         return value
 
 
@@ -297,9 +353,10 @@ class MetricValueSerializer(serializers.ModelSerializer):
 
     def validate(self, attrs):
         activity = attrs.get("activity", getattr(self.instance, "activity", None))
+        validate_executor_assignment(activity, self.context)
         planned = attrs.get("planned_value", getattr(self.instance, "planned_value", 0))
         actual = attrs.get("actual_value", getattr(self.instance, "actual_value", 0))
-        if activity and activity.status.name == "Отменена":
+        if activity and activity.status.is_terminal:
             raise serializers.ValidationError("Для отмененной активности нельзя менять метрики.")
         if planned < 0 or actual < 0:
             raise serializers.ValidationError("Значения метрик не могут быть отрицательными.")
@@ -307,11 +364,39 @@ class MetricValueSerializer(serializers.ModelSerializer):
 
 
 class ReportSerializer(serializers.ModelSerializer):
-    campaign_name = serializers.CharField(source="campaign.name", read_only=True)
+    campaign_name = serializers.SerializerMethodField()
+    campaign_names = serializers.SerializerMethodField()
+    campaign_ids = serializers.PrimaryKeyRelatedField(
+        source="campaigns", many=True, read_only=True
+    )
+    generated_by_name = serializers.SerializerMethodField()
 
     class Meta:
         model = Report
-        fields = "__all__"
+        fields = [
+            "id", "campaign", "campaign_name", "campaign_ids", "campaign_names",
+            "generated_by", "generated_by_name", "create_date", "file_path",
+        ]
+        read_only_fields = fields
+
+    def get_campaign_names(self, obj):
+        names = list(obj.campaigns.values_list("name", flat=True))
+        if not names and obj.campaign:
+            names = [obj.campaign.name]
+        return names
+
+    def get_campaign_name(self, obj):
+        names = self.get_campaign_names(obj)
+        if len(names) == 1:
+            return names[0]
+        if names:
+            return f"Сводный отчет ({len(names)} камп.)"
+        return "Без кампаний"
+
+    def get_generated_by_name(self, obj):
+        if not obj.generated_by:
+            return ""
+        return obj.generated_by.get_full_name() or obj.generated_by.username
 
 
 class UserSelfUpdateSerializer(serializers.ModelSerializer):
