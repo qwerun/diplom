@@ -169,10 +169,34 @@ export default function ActivityDetailPage() {
 
   async function downloadMedia(file) {
     const response = await api.get(`/activity-media/${file.id}/download/`, { responseType: "blob" });
+    const disposition = response.headers["content-disposition"] || "";
+    const encodedName = disposition.match(/filename\*=UTF-8''([^;]+)/i)?.[1];
+    const regularName = disposition.match(/filename="?([^";]+)"?/i)?.[1];
+    let filename = encodedName ? decodeURIComponent(encodedName) : regularName;
+
+    if (!filename) {
+      const extensionByType = {
+        "application/pdf": ".pdf",
+        "application/msword": ".doc",
+        "application/vnd.openxmlformats-officedocument.wordprocessingml.document": ".docx",
+        "application/vnd.ms-excel": ".xls",
+        "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet": ".xlsx",
+        "text/plain": ".txt",
+        "application/zip": ".zip",
+        "image/png": ".png",
+        "image/jpeg": ".jpg",
+        "image/gif": ".gif",
+        "image/webp": ".webp",
+      };
+      const title = file.title?.trim() || `activity_file_${file.id}`;
+      const extension = extensionByType[response.data.type] || "";
+      filename = title.includes(".") ? title : `${title}${extension}`;
+    }
+
     const objectUrl = URL.createObjectURL(response.data);
     const link = document.createElement("a");
     link.href = objectUrl;
-    link.download = file.title?.trim() || `activity_file_${file.id}`;
+    link.download = filename;
     document.body.appendChild(link);
     link.click();
     link.remove();
