@@ -292,6 +292,7 @@ class ActivityMediaSerializer(serializers.ModelSerializer):
     preview_url = serializers.SerializerMethodField()
     download_url = serializers.SerializerMethodField()
     content_type = serializers.SerializerMethodField()
+    file_name = serializers.SerializerMethodField()
 
     class Meta:
         model = ActivityMedia
@@ -304,6 +305,7 @@ class ActivityMediaSerializer(serializers.ModelSerializer):
             "preview_url",
             "download_url",
             "content_type",
+            "file_name",
             "uploaded_at",
         ]
         extra_kwargs = {"file": {"write_only": True}}
@@ -320,6 +322,9 @@ class ActivityMediaSerializer(serializers.ModelSerializer):
 
     def get_content_type(self, obj):
         return mimetypes.guess_type(obj.file.name)[0] or "application/octet-stream"
+
+    def get_file_name(self, obj):
+        return Path(obj.file.name).name if obj.file else ""
 
     def validate(self, attrs):
         activity = attrs.get("activity", getattr(self.instance, "activity", None))

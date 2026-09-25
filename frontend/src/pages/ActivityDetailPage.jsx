@@ -348,7 +348,7 @@ export default function ActivityDetailPage() {
                 {file.content_type?.startsWith("image/") ? "IMG" : "FILE"}
               </div>
               <div className="media-info">
-                <b>{file.title || "Файл"}</b>
+                <b>{file.title || file.file_name || "Файл"}</b>
                 <span>{new Date(file.uploaded_at).toLocaleString("ru-RU")}</span>
               </div>
               <button type="button" className="plain-button small download-link" onClick={() => downloadMedia(file)}>
