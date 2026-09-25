@@ -121,7 +121,7 @@ class CampaignSerializer(serializers.ModelSerializer):
         source="responsible_user.get_full_name", read_only=True
     )
     status_name = serializers.CharField(source="status.name", read_only=True)
-
+    
     class Meta:
         model = Campaign
         fields = "__all__"
@@ -135,6 +135,13 @@ class CampaignSerializer(serializers.ModelSerializer):
         end_date = attrs.get("end_date", getattr(self.instance, "end_date", None))
         budget = attrs.get("budget", getattr(self.instance, "budget", 0))
         new_status = attrs.get("status")
+        executor = attrs.get("executor", getattr(self.instance, "executor", None))
+    
+        if executor and getattr(getattr(executor, "profile", None), "role", None) == UserProfile.ROLE_EXECUTOR:
+            raise serializers.ValidationError({
+                "executor": "Назначить можно только пользователя с ролью «Исполнитель»."
+            })
+
         if budget < 0:
             raise serializers.ValidationError("Бюджет не может быть отрицательным.")
         if start_date and end_date and end_date < start_date:

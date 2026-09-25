@@ -38,16 +38,23 @@ class IsManagerOrStatusOnly(BasePermission):
             return role in ["admin", "manager", "executor", "head"]
         if role in ["admin", "manager"]:
             return True
-        # Исполнитель не редактирует карточку целиком, но может двигать статус
-        # по разрешенным переходам. Конкретный переход проверяет serializer.
+        
         if request.method == "PATCH" and role == "executor":
             return set(request.data.keys()) <= {"status"}
         return False
 
 
-class IsAdminOrHead(BasePermission):
+class CanUseReports(BasePermission):
     def has_permission(self, request, view):
-        return user_role(request.user) in ["admin", "head"]
+        return user_role(request.user) in ["admin", "manager", "executor", "head"]
+
+
+class CanManageActivityMedia(BasePermission):
+    def has_permission(self, request, view):
+        role = user_role(request.user)
+        if request.method in SAFE_METHODS:
+            return role in ["admin", "manager", "executor", "head"]
+        return role in ["admin", "manager", "executor"]
 
 
 class CanEditMetrics(BasePermission):
