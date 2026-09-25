@@ -1054,7 +1054,14 @@ textarea {
 }
 
 .campaigns-list-panel .table-wrap {
+  width: 100%;
   margin-bottom: 0;
+  overflow-x: auto;
+}
+
+.campaigns-list-panel table {
+  width: 100%;
+  min-width: 1150px;
 }
 
 .inline-heading {
@@ -1510,7 +1517,9 @@ textarea {
 }
 
 .content {
-  max-width: 1280px;
+  width: 100%;
+  max-width: 1500px;
+  margin: 0 auto;
   padding: 24px 24px 40px;
 }
 
