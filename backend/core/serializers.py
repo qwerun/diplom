@@ -126,7 +126,6 @@ class CampaignSerializer(serializers.ModelSerializer):
         model = Campaign
         fields = "__all__"
         extra_kwargs = {
-            # Статус не показываем в форме создания: backend сам ставит стартовый статус.
             "status": {"required": False},
         }
 
@@ -161,13 +160,18 @@ class CampaignSerializer(serializers.ModelSerializer):
         return attrs
 
     def create(self, validated_data):
-        # Временный учебный комментарий: статус задается на backend, чтобы нельзя было
-        # создать кампанию сразу активной простым изменением запроса из браузера.
         validated_data.setdefault(
             "status",
             default_status(Status.ENTITY_CAMPAIGN, DEFAULT_CAMPAIGN_STATUS),
         )
         return super().create(validated_data)
+    
+    executor_name = serializers.SerializerMethodField()
+
+    def get_executor_name(self, obj):
+        if not obj.executor:
+            return ""
+        return obj.executor.get_full_name() or obj.executor.username
 
 
 class ActivitySerializer(serializers.ModelSerializer):

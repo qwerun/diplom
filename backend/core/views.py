@@ -25,7 +25,7 @@ from .models import (
     Report,
     Status,
     StatusTransition,
-    UserProfile
+    UserProfile,
 )
 from .permissions import (
     CanEditActivityResult,
