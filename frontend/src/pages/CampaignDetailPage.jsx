@@ -34,6 +34,7 @@ export default function CampaignDetailPage() {
   const [selectedActivityStatuses, setSelectedActivityStatuses] = useState({});
   const [currentUser, setCurrentUser] = useState(null);
   const [formError, setFormError] = useState("");
+  const [executors, setExecutors] = useState([]);
 
   function load() {
     api.get(`/campaigns/${id}/`).then((res) => setCampaign(res.data));
@@ -45,6 +46,7 @@ export default function CampaignDetailPage() {
     api.get("/status-transitions/?entity_type=activity").then((res) => setActivityTransitions(asList(res.data)));
     api.get("/status-transitions/?entity_type=campaign").then((res) => setCampaignTransitions(asList(res.data)));
     api.get("/me/").then((res) => setCurrentUser(res.data)).catch(() => setCurrentUser(null));
+    api.get("/users/executors/").then((res) => setExecutors(asList(res.data))).catch(() => setExecutors([]));
   }
 
   useEffect(load, [id]);
@@ -54,7 +56,7 @@ export default function CampaignDetailPage() {
     setFormError("");
     setActivityForm({
       ...emptyActivityForm,
-      status: statuses.find((status) => status.name === "Запланирована")?.id || statuses[0]?.id || "",
+      status: statuses.find((status) => status.is_initial)?.id || statuses[0]?.id || "",
     });
     setModalOpen(true);
   }
@@ -82,6 +84,7 @@ export default function CampaignDetailPage() {
       end_date: campaign.end_date,
       status: campaign.status,
       responsible_user: campaign.responsible_user,
+      executor: campaign.executor || "",
     });
     setCampaignModalOpen(true);
   }
@@ -93,7 +96,7 @@ export default function CampaignDetailPage() {
       setFormError("Дата начала не может быть позже даты окончания.");
       return;
     }
-    await api.patch(`/campaigns/${id}/`, campaignForm);
+    await api.patch(`/campaigns/${id}/`, { ...campaignForm, executor: campaignForm.executor || null });
     setCampaignModalOpen(false);
     load();
   }
@@ -116,7 +119,7 @@ export default function CampaignDetailPage() {
     const payload = {
       ...activityForm,
       campaign: id,
-      status: activityForm.status || statuses.find((status) => status.name === "Запланирована")?.id || statuses[0]?.id,
+      status: activityForm.status || statuses.find((status) => status.is_initial)?.id || statuses[0]?.id,
     };
     if (editingActivity) {
       await api.patch(`/activities/${editingActivity.id}/`, payload);
@@ -136,11 +139,11 @@ export default function CampaignDetailPage() {
   }
 
   function isCampaignClosed() {
-    return ["Завершена", "Отменена"].includes(campaign.status_name);
+    return Boolean(campaign.status_is_terminal);
   }
 
   function isActivityClosed(activity) {
-    return ["Выполнена", "Отменена"].includes(activity.status_name);
+    return Boolean(activity.status_is_terminal);
   }
 
   if (!campaign) return <p>Загрузка...</p>;
@@ -169,6 +172,7 @@ export default function CampaignDetailPage() {
           <div><span>Бюджет</span><strong>{campaign.budget} руб.</strong></div>
           <div><span>Сроки</span><strong>{campaign.start_date} - {campaign.end_date}</strong></div>
           <div><span>Статус</span><strong className="status-pill">{campaign.status_name}</strong></div>
+          <div><span>Исполнитель</span><strong>{campaign.executor_name || "Не назначен"}</strong></div>
         </div>
       </section>
 
@@ -266,14 +270,14 @@ export default function CampaignDetailPage() {
               <label className="wide-field">Описание<textarea value={activityForm.description} onChange={(e) => setActivityForm({ ...activityForm, description: e.target.value })} /></label>
               <label>
                 Канал
-                <select required disabled={editingActivity?.status_name === "В работе"} value={activityForm.channel} onChange={(e) => setActivityForm({ ...activityForm, channel: e.target.value })}>
+                <select required disabled={editingActivity?.status_locks_fields} value={activityForm.channel} onChange={(e) => setActivityForm({ ...activityForm, channel: e.target.value })}>
                   <option value="">Выберите канал</option>
                   {channels.map((item) => <option key={item.id} value={item.id}>{item.name}</option>)}
                 </select>
               </label>
               <label>
                 Источник метрик
-                <select required disabled={editingActivity?.status_name === "В работе"} value={activityForm.metric_source} onChange={(e) => setActivityForm({ ...activityForm, metric_source: e.target.value })}>
+                <select required disabled={editingActivity?.status_locks_fields} value={activityForm.metric_source} onChange={(e) => setActivityForm({ ...activityForm, metric_source: e.target.value })}>
                   <option value="">Выберите источник</option>
                   {sources.map((item) => <option key={item.id} value={item.id}>{item.name} ({item.type})</option>)}
                 </select>
@@ -299,8 +303,15 @@ export default function CampaignDetailPage() {
               <label>Название<input required disabled={isCampaignClosed()} value={campaignForm.name} onChange={(e) => setCampaignForm({ ...campaignForm, name: e.target.value })} /></label>
               <label className="wide-field">Цель<textarea required value={campaignForm.goal} onChange={(e) => setCampaignForm({ ...campaignForm, goal: e.target.value })} /></label>
               <label>Бюджет<input required type="number" min="0" value={campaignForm.budget} onChange={(e) => setCampaignForm({ ...campaignForm, budget: e.target.value })} /></label>
-              <label>Дата начала<input required type="date" disabled={campaign.status_name === "Активна"} value={campaignForm.start_date} onChange={(e) => setCampaignForm({ ...campaignForm, start_date: e.target.value })} /></label>
+              <label>Дата начала<input required type="date" disabled={campaign.status_locks_fields} value={campaignForm.start_date} onChange={(e) => setCampaignForm({ ...campaignForm, start_date: e.target.value })} /></label>
               <label>Дата окончания<input required type="date" value={campaignForm.end_date} onChange={(e) => setCampaignForm({ ...campaignForm, end_date: e.target.value })} /></label>
+              <label>
+                Исполнитель
+                <select value={campaignForm.executor || ""} onChange={(e) => setCampaignForm({ ...campaignForm, executor: e.target.value })}>
+                  <option value="">Не назначен</option>
+                  {executors.map((item) => <option key={item.id} value={item.id}>{item.full_name}</option>)}
+                </select>
+              </label>
             </div>
             {formError && <p className="notice-text">{formError}</p>}
             <div className="modal-actions">

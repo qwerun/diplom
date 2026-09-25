@@ -14,12 +14,14 @@ const emptyForm = {
   end_date: "",
   status: "",
   responsible_user: "",
+  executor: "",
 };
 
 export default function CampaignsPage() {
   const [campaigns, setCampaigns] = useState([]);
   const [users, setUsers] = useState([]);
   const [statuses, setStatuses] = useState([]);
+  const [executors, setExecutors] = useState([]);
   const [search, setSearch] = useState("");
   const [selectedStatus, setSelectedStatus] = useState("");
   const [isModalOpen, setIsModalOpen] = useState(false);
@@ -35,7 +37,7 @@ export default function CampaignsPage() {
     const query = search.trim().toLocaleLowerCase("ru-RU");
     return campaigns.filter((campaign) => {
       const matchesStatus = !selectedStatus || campaign.status_name === selectedStatus;
-      const matchesSearch = !query || [campaign.name, campaign.goal, campaign.status_name, campaign.responsible_user_name]
+      const matchesSearch = !query || [campaign.name, campaign.goal, campaign.status_name, campaign.responsible_user_name, campaign.executor_name]
         .filter(Boolean)
         .some((value) => String(value).toLocaleLowerCase("ru-RU").includes(query));
       return matchesStatus && matchesSearch;
@@ -53,13 +55,14 @@ export default function CampaignsPage() {
       .catch(() => {
         api.get("/me/").then((res) => setUsers([res.data])).catch(() => setUsers([]));
       });
+    api.get("/users/executors/").then((res) => setExecutors(asList(res.data))).catch(() => setExecutors([]));
     api.get("/statuses/?entity_type=campaign").then((res) => setStatuses(asList(res.data))).catch(() => setStatuses([]));
   }
 
   useEffect(load, []);
 
   function defaultCampaignStatusId() {
-    return statuses.find((status) => status.name === "Черновик")?.id || statuses[0]?.id || "";
+    return statuses.find((status) => status.is_initial)?.id || statuses[0]?.id || "";
   }
 
   function datesAreValid() {
@@ -73,6 +76,7 @@ export default function CampaignsPage() {
       ...emptyForm,
       status: defaultCampaignStatusId(),
       responsible_user: users.length === 1 ? users[0].id : "",
+      executor: "",
     });
     setIsModalOpen(true);
   }
@@ -87,12 +91,13 @@ export default function CampaignsPage() {
       end_date: campaign.end_date,
       status: campaign.status,
       responsible_user: campaign.responsible_user,
+      executor: campaign.executor || "",
     });
     setIsModalOpen(true);
   }
 
   function isClosed(campaign) {
-    return ["Завершена", "Отменена"].includes(campaign.status_name);
+    return Boolean(campaign.status_is_terminal);
   }
 
   async function submit(event) {
@@ -103,9 +108,9 @@ export default function CampaignsPage() {
       return;
     }
     if (editingCampaign) {
-      await api.patch(`/campaigns/${editingCampaign.id}/`, form);
+      await api.patch(`/campaigns/${editingCampaign.id}/`, { ...form, executor: form.executor || null });
     } else {
-      await api.post("/campaigns/", { ...form, status: form.status || defaultCampaignStatusId() });
+      await api.post("/campaigns/", { ...form, executor: form.executor || null, status: form.status || defaultCampaignStatusId() });
     }
     setForm(emptyForm);
     setEditingCampaign(null);
@@ -158,7 +163,8 @@ export default function CampaignsPage() {
           columns={[
             { key: "name", title: "Название", render: (row) => <Link className="table-link" to={`/campaigns/${row.id}`}>{row.name}</Link> },
             { key: "status_name", title: "Статус" },
-            { key: "responsible_user_name", title: "Ответственный" },
+            { key: "responsible_user_name", title: "Менеджер" },
+            { key: "executor_name", title: "Исполнитель", render: (row) => row.executor_name || "Не назначен" },
             { key: "budget", title: "Бюджет" },
             { key: "start_date", title: "Дата начала" },
             { key: "end_date", title: "Дата окончания" },
@@ -186,13 +192,20 @@ export default function CampaignsPage() {
               <label>Название кампании<input required disabled={isClosed(editingCampaign || {})} value={form.name} onChange={(e) => setForm({ ...form, name: e.target.value })} /></label>
               <label className="wide-field">Цель кампании<textarea required value={form.goal} onChange={(e) => setForm({ ...form, goal: e.target.value })} /></label>
               <label>Бюджет, руб.<input required type="number" min="0" value={form.budget} onChange={(e) => setForm({ ...form, budget: e.target.value })} /></label>
-              <label>Дата начала<input required type="date" disabled={editingCampaign?.status_name === "Активна"} value={form.start_date} onChange={(e) => setForm({ ...form, start_date: e.target.value })} /></label>
+              <label>Дата начала<input required type="date" disabled={editingCampaign?.status_locks_fields} value={form.start_date} onChange={(e) => setForm({ ...form, start_date: e.target.value })} /></label>
               <label>Дата окончания<input required type="date" value={form.end_date} onChange={(e) => setForm({ ...form, end_date: e.target.value })} /></label>
               <label>
-                Ответственный
-                <select required disabled={editingCampaign?.status_name === "Активна"} value={form.responsible_user} onChange={(e) => setForm({ ...form, responsible_user: e.target.value })}>
+                Ответственный менеджер
+                <select required disabled={editingCampaign?.status_locks_fields} value={form.responsible_user} onChange={(e) => setForm({ ...form, responsible_user: e.target.value })}>
                   <option value="">Выберите пользователя</option>
                   {users.map((item) => <option key={item.id} value={item.id}>{item.full_name}</option>)}
+                </select>
+              </label>
+              <label>
+                Исполнитель
+                <select value={form.executor} onChange={(e) => setForm({ ...form, executor: e.target.value })}>
+                  <option value="">Не назначен</option>
+                  {executors.map((item) => <option key={item.id} value={item.id}>{item.full_name}</option>)}
                 </select>
               </label>
             </div>
