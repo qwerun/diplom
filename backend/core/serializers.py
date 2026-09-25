@@ -137,11 +137,14 @@ class CampaignSerializer(serializers.ModelSerializer):
         new_status = attrs.get("status")
         executor = attrs.get("executor", getattr(self.instance, "executor", None))
     
-        if executor and getattr(getattr(executor, "profile", None), "role", None) == UserProfile.ROLE_EXECUTOR:
+        if executor and getattr(
+            getattr(executor, "profile", None),
+            "role",
+            None,
+        ) != UserProfile.ROLE_EXECUTOR:
             raise serializers.ValidationError({
                 "executor": "Назначить можно только пользователя с ролью «Исполнитель»."
             })
-
         if budget < 0:
             raise serializers.ValidationError("Бюджет не может быть отрицательным.")
         if start_date and end_date and end_date < start_date:
