@@ -33,12 +33,34 @@ class Status(models.Model):
     ]
 
     name = models.CharField(max_length=100)
-    entity_type = models.CharField(max_length=20, choices=ENTITY_CHOICES)
+
+    entity_type = models.CharField(
+        max_length=20,
+        choices=ENTITY_CHOICES,
+    )
+
+    code = models.SlugField(
+        max_length=50,
+        blank=True,
+    )
+
+    is_initial = models.BooleanField(
+        default=False,
+    )
+
+    is_terminal = models.BooleanField(
+        default=False,
+    )
+
+    locks_fields = models.BooleanField(
+        default=False,
+    )
 
     class Meta:
         constraints = [
             models.UniqueConstraint(
-                fields=["name", "entity_type"], name="unique_status_for_entity"
+                fields=["name", "entity_type"],
+                name="unique_status_for_entity",
             )
         ]
         ordering = ["entity_type", "name"]
@@ -131,7 +153,7 @@ class Campaign(models.Model):
         related_name="assigned_campaigns",
         limit_choices_to={"profile__role": "executor"},
     )
-    
+
     class Meta:
         ordering = ["-start_date", "name"]
 

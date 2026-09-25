@@ -118,9 +118,36 @@ class MetricSourceSerializer(serializers.ModelSerializer):
 
 class CampaignSerializer(serializers.ModelSerializer):
     responsible_user_name = serializers.CharField(
-        source="responsible_user.get_full_name", read_only=True
+        source="responsible_user.get_full_name",
+        read_only=True,
     )
-    status_name = serializers.CharField(source="status.name", read_only=True)
+
+    executor_name = serializers.SerializerMethodField()
+
+    status_name = serializers.CharField(
+        source="status.name",
+        read_only=True,
+    )
+
+    status_is_initial = serializers.BooleanField(
+        source="status.is_initial",
+        read_only=True,
+    )
+
+    status_is_terminal = serializers.BooleanField(
+        source="status.is_terminal",
+        read_only=True,
+    )
+
+    status_locks_fields = serializers.BooleanField(
+        source="status.locks_fields",
+        read_only=True,
+    )
+
+    def get_executor_name(self, obj):
+        if not obj.executor:
+            return ""
+        return obj.executor.get_full_name() or obj.executor.username
     
     class Meta:
         model = Campaign
@@ -166,12 +193,6 @@ class CampaignSerializer(serializers.ModelSerializer):
         )
         return super().create(validated_data)
     
-    executor_name = serializers.SerializerMethodField()
-
-    def get_executor_name(self, obj):
-        if not obj.executor:
-            return ""
-        return obj.executor.get_full_name() or obj.executor.username
 
 
 class ActivitySerializer(serializers.ModelSerializer):
@@ -181,6 +202,21 @@ class ActivitySerializer(serializers.ModelSerializer):
     metric_source_name = serializers.CharField(source="metric_source.name", read_only=True)
     metric_source_type = serializers.CharField(source="metric_source.type", read_only=True)
     metric_source_type_display = serializers.CharField(source="metric_source.get_type_display", read_only=True)
+
+    status_is_initial = serializers.BooleanField(
+        source="status.is_initial",
+        read_only=True,
+    )
+
+    status_is_terminal = serializers.BooleanField(
+        source="status.is_terminal",
+        read_only=True,
+    )
+
+    status_locks_fields = serializers.BooleanField(
+        source="status.locks_fields",
+        read_only=True,
+    )
 
     class Meta:
         model = Activity
