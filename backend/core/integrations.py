@@ -104,7 +104,6 @@ def fetch_telegram_metrics(result_url):
         ) from error
     except Exception as error:
         raise MetricApiError(f"Telegram API не смог получить сообщение: {error}") from error
-    print('message', message)
     if not message:
         raise MetricApiError("Telegram API не вернул сообщение по ссылке.")
 

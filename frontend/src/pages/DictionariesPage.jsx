@@ -188,8 +188,6 @@ export default function DictionariesPage() {
 
   async function saveTransitions() {
     setMatrixSaving(true);
-    // Временный учебный комментарий: матрица редактируется как черновик.
-    // При сохранении считаем разницу: что удалить и что создать.
     const currentKeys = matrixTransitions.map((transition) => `${transition.from_status}:${transition.to_status}`);
     const draftSet = new Set(transitionDraft);
     const currentSet = new Set(currentKeys);

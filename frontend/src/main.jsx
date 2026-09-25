@@ -15,8 +15,6 @@ import UsersPage from "./pages/UsersPage.jsx";
 import "./styles/app.css";
 
 function ProtectedRoute({ children }) {
-  // Временный учебный комментарий: это простая защита маршрутов на фронте.
-  // Настоящая защита прав все равно находится на backend permissions.
   return localStorage.getItem("accessToken") ? children : <Navigate to="/login" replace />;
 }
 

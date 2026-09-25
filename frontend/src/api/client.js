@@ -5,8 +5,6 @@ const api = axios.create({
 });
 
 api.interceptors.request.use((config) => {
-  // Временный учебный комментарий: access token добавляется ко всем API-запросам,
-  // поэтому страницам не нужно вручную передавать Authorization.
   const token = localStorage.getItem("accessToken");
   if (token) {
     config.headers.Authorization = `Bearer ${token}`;
@@ -21,7 +19,6 @@ api.interceptors.response.use(
     const refreshToken = localStorage.getItem("refreshToken");
 
     if (error.response?.status === 401 && refreshToken && !originalRequest._retry) {
-      // Если access token истек, один раз пробуем обновить его refresh token-ом.
       originalRequest._retry = true;
       try {
         const { data } = await axios.post(`${api.defaults.baseURL}/auth/refresh/`, {

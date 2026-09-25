@@ -12,3 +12,5 @@ backend/media/
 .agents/
 .codex/
 .DS_Store
+outputs/
+tools/
