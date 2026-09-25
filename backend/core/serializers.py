@@ -1,7 +1,12 @@
+from pathlib import Path
+import mimetypes
+
 from django.contrib.auth.models import User
 from django.contrib.auth.password_validation import validate_password
 from django.core.exceptions import ValidationError as DjangoValidationError
 from rest_framework import serializers
+
+from .permissions import user_role
 
 from .models import (
     Activity,
@@ -277,10 +282,16 @@ class ActivityResultSerializer(serializers.ModelSerializer):
 
 
 class ActivityMediaSerializer(serializers.ModelSerializer):
+    ALLOWED_EXTENSIONS = {
+        ".png", ".jpg", ".jpeg", ".gif", ".webp",
+        ".pdf", ".doc", ".docx", ".xls", ".xlsx", ".txt", ".zip",
+    }
+    MAX_FILE_SIZE = 10 * 1024 * 1024
+
     activity_name = serializers.CharField(source="activity.name", read_only=True)
-    file_url = serializers.SerializerMethodField()
     preview_url = serializers.SerializerMethodField()
     download_url = serializers.SerializerMethodField()
+    content_type = serializers.SerializerMethodField()
 
     class Meta:
         model = ActivityMedia
@@ -290,42 +301,47 @@ class ActivityMediaSerializer(serializers.ModelSerializer):
             "activity_name",
             "title",
             "file",
-            "file_url",
             "preview_url",
             "download_url",
+            "content_type",
             "uploaded_at",
         ]
-
-    def get_file_url(self, obj):
-        request = self.context.get("request")
-        if request and obj.file:
-            return request.build_absolute_uri(obj.file.url)
-        return obj.file.url if obj.file else ""
+        extra_kwargs = {"file": {"write_only": True}}
 
     def get_preview_url(self, obj):
         request = self.context.get("request")
-        if not request:
-            return f"/api/activity-media/{obj.id}/preview/"
-        return request.build_absolute_uri(f"/api/activity-media/{obj.id}/preview/")
+        path = f"/api/activity-media/{obj.id}/preview/"
+        return request.build_absolute_uri(path) if request else path
 
     def get_download_url(self, obj):
         request = self.context.get("request")
-        if not request:
-            return f"/api/activity-media/{obj.id}/download/"
-        return request.build_absolute_uri(f"/api/activity-media/{obj.id}/download/")
+        path = f"/api/activity-media/{obj.id}/download/"
+        return request.build_absolute_uri(path) if request else path
+
+    def get_content_type(self, obj):
+        return mimetypes.guess_type(obj.file.name)[0] or "application/octet-stream"
 
     def validate(self, attrs):
         activity = attrs.get("activity", getattr(self.instance, "activity", None))
-        if activity and activity.status.name == "Отменена":
-            raise serializers.ValidationError("К отмененной активности нельзя прикреплять медиафайлы.")
+        request = self.context.get("request")
+        if request and user_role(request.user) == UserProfile.ROLE_EXECUTOR:
+            if not activity or activity.campaign.executor_id != request.user.id:
+                raise serializers.ValidationError({
+                    "activity": "Файл можно прикрепить только к активности назначенной кампании."
+                })
+        if activity and activity.status.is_terminal:
+            raise serializers.ValidationError(
+                "К завершенной или отмененной активности нельзя прикреплять файлы."
+            )
         return attrs
 
     def validate_file(self, value):
-        # Временный учебный комментарий: фронт тоже принимает только image/*,
-        # но окончательная проверка типа файла обязательно остается на backend.
-        content_type = getattr(value, "content_type", "")
-        if content_type and not content_type.startswith("image/"):
-            raise serializers.ValidationError("Можно загружать только изображения.")
+        extension = Path(value.name).suffix.lower()
+        if extension not in self.ALLOWED_EXTENSIONS:
+            allowed = ", ".join(sorted(self.ALLOWED_EXTENSIONS))
+            raise serializers.ValidationError(f"Допустимые форматы: {allowed}.")
+        if value.size > self.MAX_FILE_SIZE:
+            raise serializers.ValidationError("Размер файла не должен превышать 10 Мбайт.")
         return value
 
 

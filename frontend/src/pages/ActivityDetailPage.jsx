@@ -122,8 +122,8 @@ export default function ActivityDetailPage() {
       setMediaError("Выберите файл для загрузки.");
       return;
     }
-    if (!mediaForm.file.type.startsWith("image/")) {
-      setMediaError("Можно загружать только фотографии.");
+    if (mediaForm.file.size > 10 * 1024 * 1024) {
+      setMediaError("Размер файла не должен превышать 10 МБ.");
       return;
     }
 
@@ -168,25 +168,25 @@ export default function ActivityDetailPage() {
   }
 
   async function downloadMedia(file) {
-    const url = file.download_url || file.file_url || file.file;
+    const response = await api.get(`/activity-media/${file.id}/download/`, { responseType: "blob" });
+    const objectUrl = URL.createObjectURL(response.data);
     const link = document.createElement("a");
-    const fallbackName = decodeURIComponent(url.split("/").pop() || "photo");
-    const extension = fallbackName.includes(".") ? `.${fallbackName.split(".").pop()}` : "";
-    const title = file.title?.trim();
-    link.href = url;
-    link.download = title ? (title.includes(".") ? title : `${title}${extension}`) : fallbackName;
+    link.href = objectUrl;
+    link.download = file.title?.trim() || `activity_file_${file.id}`;
     document.body.appendChild(link);
     link.click();
     link.remove();
+    URL.revokeObjectURL(objectUrl);
   }
 
   if (!activity) return <p>Загрузка...</p>;
 
-  const isCanceled = activity.status_name === "Отменена";
+  const isCanceled = Boolean(activity.status_is_terminal);
   const activityStatusOptions = getStatusOptions(activity.status_name, statuses, statusTransitions);
   const isApiSource = activity.metric_source_type === "API";
   const currentRole = currentUser?.profile?.role;
   const canManageActivity = CAN_MANAGE_CAMPAIGNS.includes(currentRole);
+  const canUploadFiles = CAN_EDIT_EXECUTION.includes(currentRole);
   const canChangeStatus = CAN_CHANGE_STATUS.includes(currentRole);
   const canEditResult = CAN_EDIT_EXECUTION.includes(currentRole);
   const canEditMetrics = CAN_EDIT_EXECUTION.includes(currentRole);
@@ -305,7 +305,7 @@ export default function ActivityDetailPage() {
             <span className="section-label">Материалы</span>
             <h2>Медиафайлы</h2>
           </div>
-          {canManageActivity && <button
+          {canUploadFiles && <button
             className="secondary-button"
             disabled={isCanceled}
             onClick={() => {
@@ -320,17 +320,17 @@ export default function ActivityDetailPage() {
         <div className="media-list">
           {mediaFiles.map((file) => (
             <div className="media-item" key={file.id}>
-              <a className="media-preview" href={file.preview_url || file.file_url || file.file} target="_blank" title="Открыть фото">
-                <img src={file.preview_url || file.file_url || file.file} alt={file.title || "Фото"} />
-              </a>
+              <div className="media-preview file-preview" aria-hidden="true">
+                {file.content_type?.startsWith("image/") ? "IMG" : "FILE"}
+              </div>
               <div className="media-info">
-                <b>{file.title || "Фото"}</b>
+                <b>{file.title || "Файл"}</b>
                 <span>{new Date(file.uploaded_at).toLocaleString("ru-RU")}</span>
               </div>
               <button type="button" className="plain-button small download-link" onClick={() => downloadMedia(file)}>
                 Скачать
               </button>
-              {canManageActivity && <button className="danger-button small" onClick={() => deleteMedia(file)}>Удалить</button>}
+              {canUploadFiles && <button className="danger-button small" onClick={() => deleteMedia(file)}>Удалить</button>}
             </div>
           ))}
         </div>
@@ -413,8 +413,8 @@ export default function ActivityDetailPage() {
                 <input value={mediaForm.title} onChange={(e) => setMediaForm({ ...mediaForm, title: e.target.value })} />
               </label>
               <label>
-                Фото
-                <input required type="file" accept="image/*" onChange={(e) => setMediaForm({ ...mediaForm, file: e.target.files[0] })} />
+                Файл
+                <input required type="file" accept=".png,.jpg,.jpeg,.gif,.webp,.pdf,.doc,.docx,.xls,.xlsx,.txt,.zip" onChange={(e) => setMediaForm({ ...mediaForm, file: e.target.files[0] })} />
               </label>
             </div>
             {mediaError && <p className="form-error">{mediaError}</p>}
