@@ -26,6 +26,14 @@ export default function ReportsPage() {
     ));
   }
 
+  function selectAllCampaigns() {
+    setSelectedCampaigns(campaigns.map((campaign) => String(campaign.id)));
+  }
+
+  function clearSelection() {
+    setSelectedCampaigns([]);
+  }
+
   async function generate() {
     if (selectedCampaigns.length === 0) {
       setError("Выберите хотя бы одну кампанию.");
@@ -66,20 +74,30 @@ export default function ReportsPage() {
           <span className="section-label">Состав отчета</span>
           <h2>Выберите одну или несколько кампаний</h2>
         </div>
+        <div className="report-selection-toolbar">
+          <span>Выбрано: <strong>{selectedCampaigns.length}</strong> из {campaigns.length}</span>
+          <div>
+            <button type="button" className="plain-button small" onClick={selectAllCampaigns} disabled={campaigns.length === 0}>Выбрать все</button>
+            <button type="button" className="plain-button small" onClick={clearSelection} disabled={selectedCampaigns.length === 0}>Снять выбор</button>
+          </div>
+        </div>
         <div className="report-campaign-selector">
-          {campaigns.map((campaign) => (
-            <label className="report-campaign-option" key={campaign.id}>
-              <input
-                type="checkbox"
-                checked={selectedCampaigns.includes(String(campaign.id))}
-                onChange={() => toggleCampaign(campaign.id)}
-              />
-              <span>
-                <b>{campaign.name}</b>
-                <small>{campaign.executor_name ? `Исполнитель: ${campaign.executor_name}` : "Исполнитель не назначен"}</small>
-              </span>
-            </label>
-          ))}
+          {campaigns.map((campaign) => {
+            const selected = selectedCampaigns.includes(String(campaign.id));
+            return (
+              <label className={`report-campaign-option${selected ? " selected" : ""}`} key={campaign.id}>
+                <input
+                  type="checkbox"
+                  checked={selected}
+                  onChange={() => toggleCampaign(campaign.id)}
+                />
+                <span>
+                  <b>{campaign.name}</b>
+                  <small>{campaign.executor_name ? `Исполнитель: ${campaign.executor_name}` : "Исполнитель не назначен"}</small>
+                </span>
+              </label>
+            );
+          })}
           {campaigns.length === 0 && <div className="empty-state compact-empty">Доступных кампаний нет.</div>}
         </div>
         {error && <p className="form-error">{error}</p>}
@@ -87,7 +105,7 @@ export default function ReportsPage() {
 
       <section className="panel">
         <DataTable rows={reports} columns={[
-          { key: "campaign_name", title: "Кампании" },
+          { key: "campaign_names", title: "Кампании", render: (row) => row.campaign_names?.join(", ") || row.campaign_name || "—" },
           { key: "generated_by_name", title: "Сформировал" },
           { key: "create_date", title: "Дата" },
           { key: "file_path", title: "Файл", render: (row) => <button className="table-button" onClick={() => downloadReport(row)}>Скачать XLSX</button> },
