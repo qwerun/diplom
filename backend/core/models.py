@@ -33,11 +33,7 @@ class Status(models.Model):
     ]
 
     name = models.CharField(max_length=100)
-    code = models.SlugField(max_length=50, blank=True)
     entity_type = models.CharField(max_length=20, choices=ENTITY_CHOICES)
-    is_initial = models.BooleanField(default=False)
-    is_terminal = models.BooleanField(default=False)
-    locks_fields = models.BooleanField(default=False)
 
     class Meta:
         constraints = [
@@ -125,14 +121,6 @@ class Campaign(models.Model):
         on_delete=models.PROTECT,
         limit_choices_to={"entity_type": Status.ENTITY_CAMPAIGN},
         related_name="campaigns",
-    )
-    executor = models.ForeignKey(
-        User,
-        on_delete=models.SET_NULL,
-        null=True,
-        blank=True,
-        limit_choices_to={"profile__role": UserProfile.ROLE_EXECUTOR},
-        related_name="assigned_campaigns",
     )
 
     class Meta:
@@ -239,21 +227,7 @@ class MetricValue(models.Model):
 
 
 class Report(models.Model):
-    campaign = models.ForeignKey(
-        Campaign,
-        on_delete=models.SET_NULL,
-        null=True,
-        blank=True,
-        related_name="legacy_reports",
-    )
-    campaigns = models.ManyToManyField(Campaign, related_name="reports", blank=True)
-    generated_by = models.ForeignKey(
-        User,
-        on_delete=models.SET_NULL,
-        null=True,
-        blank=True,
-        related_name="generated_reports",
-    )
+    campaign = models.ForeignKey(Campaign, on_delete=models.CASCADE, related_name="reports")
     create_date = models.DateTimeField(auto_now_add=True)
     file_path = models.CharField(max_length=255, blank=True)
 
@@ -261,5 +235,4 @@ class Report(models.Model):
         ordering = ["-create_date"]
 
     def __str__(self):
-        names = ", ".join(self.campaigns.values_list("name", flat=True)[:3])
-        return f"Отчет: {names or 'без кампаний'}"
+        return f"Отчет по кампании {self.campaign.name}"
