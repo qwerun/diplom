@@ -290,10 +290,10 @@ class ReportViewSet(viewsets.ModelViewSet):
 
     def get_queryset(self):
         queryset = super().get_queryset()
-        if user_role(self.request.user) == "executor":
-            return queryset.filter(
-                Q(campaigns__executor=self.request.user) | Q(campaign__executor=self.request.user)
-            ).distinct()
+        # Администратор контролирует все сформированные отчеты. Остальные роли
+        # видят и скачивают только отчеты, созданные собственной учетной записью.
+        if user_role(self.request.user) != UserProfile.ROLE_ADMIN:
+            queryset = queryset.filter(generated_by=self.request.user)
         return queryset
 
     def allowed_campaigns(self):
