@@ -1061,7 +1061,8 @@ textarea {
 
 .campaigns-list-panel table {
   width: 100%;
-  min-width: 1150px;
+  min-width: 0;
+  table-layout: fixed;
 }
 
 .inline-heading {
@@ -1950,4 +1951,66 @@ h1 {
   color: #44546a;
   font-size: 11px;
   font-weight: 700;
+}
+/* Таблица рекламных кампаний */
+.campaigns-list-panel .table-wrap {
+  width: 100%;
+  overflow-x: visible;
+}
+
+.campaigns-list-panel table {
+  width: 100%;
+  min-width: 0;
+  table-layout: fixed;
+}
+
+.campaigns-list-panel th,
+.campaigns-list-panel td {
+  padding: 13px 8px;
+  white-space: normal;
+  overflow-wrap: anywhere;
+}
+
+/* Название */
+.campaigns-list-panel th:nth-child(1),
+.campaigns-list-panel td:nth-child(1) {
+  width: 27%;
+}
+
+/* Статус */
+.campaigns-list-panel th:nth-child(2),
+.campaigns-list-panel td:nth-child(2) {
+  width: 9%;
+}
+
+/* Менеджер */
+.campaigns-list-panel th:nth-child(3),
+.campaigns-list-panel td:nth-child(3) {
+  width: 15%;
+}
+
+/* Исполнитель */
+.campaigns-list-panel th:nth-child(4),
+.campaigns-list-panel td:nth-child(4) {
+  width: 15%;
+}
+
+/* Бюджет */
+.campaigns-list-panel th:nth-child(5),
+.campaigns-list-panel td:nth-child(5) {
+  width: 9%;
+}
+
+/* Даты */
+.campaigns-list-panel th:nth-child(6),
+.campaigns-list-panel td:nth-child(6),
+.campaigns-list-panel th:nth-child(7),
+.campaigns-list-panel td:nth-child(7) {
+  width: 10%;
+}
+
+/* Действия */
+.campaigns-list-panel th:nth-child(8),
+.campaigns-list-panel td:nth-child(8) {
+  width: 10%;
 }
