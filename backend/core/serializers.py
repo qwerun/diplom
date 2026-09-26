@@ -292,6 +292,12 @@ class ActivityResultSerializer(serializers.ModelSerializer):
 
     def validate(self, attrs):
         activity = attrs.get("activity", getattr(self.instance, "activity", None))
+        request = self.context.get("request")
+        if request and user_role(request.user) == UserProfile.ROLE_EXECUTOR:
+            if not activity or activity.campaign.executor_id != request.user.id:
+                raise serializers.ValidationError({
+                    "activity": "Результат можно добавить только к активности назначенной кампании."
+                })
         if activity and activity.status.is_terminal:
             raise serializers.ValidationError("Для закрытой активности нельзя менять результат.")
         return attrs
@@ -384,8 +390,14 @@ class MetricValueSerializer(serializers.ModelSerializer):
 
     def validate(self, attrs):
         activity = attrs.get("activity", getattr(self.instance, "activity", None))
+        request = self.context.get("request")
         planned = attrs.get("planned_value", getattr(self.instance, "planned_value", 0))
         actual = attrs.get("actual_value", getattr(self.instance, "actual_value", 0))
+        if request and user_role(request.user) == UserProfile.ROLE_EXECUTOR:
+            if not activity or activity.campaign.executor_id != request.user.id:
+                raise serializers.ValidationError({
+                    "activity": "Метрики можно добавить только к активности назначенной кампании."
+                })
         if activity and activity.status.is_terminal:
             raise serializers.ValidationError("Для закрытой активности нельзя менять метрики.")
         if planned < 0 or actual < 0:
