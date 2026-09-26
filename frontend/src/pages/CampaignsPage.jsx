@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useState } from "react";
 import { Link } from "react-router-dom";
 
 import api from "../api/client";
@@ -20,11 +20,15 @@ const emptyForm = {
 
 export default function CampaignsPage() {
   const [campaigns, setCampaigns] = useState([]);
+  const [campaignsCount, setCampaignsCount] = useState(0);
   const [managers, setManagers] = useState([]);
   const [statuses, setStatuses] = useState([]);
   const [executors, setExecutors] = useState([]);
   const [search, setSearch] = useState("");
   const [selectedStatus, setSelectedStatus] = useState("");
+  const [page, setPage] = useState(1);
+  const [hasNextPage, setHasNextPage] = useState(false);
+  const [hasPreviousPage, setHasPreviousPage] = useState(false);
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [editingCampaign, setEditingCampaign] = useState(null);
   const [error, setError] = useState("");
@@ -34,21 +38,22 @@ export default function CampaignsPage() {
   const currentRole = currentUser?.profile?.role;
   const canManageCampaigns = CAN_MANAGE_CAMPAIGNS.includes(currentRole);
 
-  const visibleCampaigns = useMemo(() => {
-    const query = search.trim().toLocaleLowerCase("ru-RU");
-    return campaigns.filter((campaign) => {
-      const matchesStatus = !selectedStatus || campaign.status_name === selectedStatus;
-      const matchesSearch = !query || [campaign.name, campaign.goal, campaign.status_name, campaign.responsible_user_name, campaign.executor_name]
-        .filter(Boolean)
-        .some((value) => String(value).toLocaleLowerCase("ru-RU").includes(query));
-      return matchesStatus && matchesSearch;
-    });
-  }, [campaigns, search, selectedStatus]);
+  function campaignQueryParams(targetPage = page) {
+    const params = { page: targetPage };
+    if (search.trim()) params.search = search.trim();
+    if (selectedStatus) params.status = selectedStatus;
+    return params;
+  }
 
   function load() {
     setError("");
-    api.get("/campaigns/")
-      .then((res) => setCampaigns(asList(res.data)))
+    api.get("/campaigns/", { params: campaignQueryParams() })
+      .then((res) => {
+        setCampaigns(asList(res.data));
+        setCampaignsCount(res.data?.count ?? asList(res.data).length);
+        setHasNextPage(Boolean(res.data?.next));
+        setHasPreviousPage(Boolean(res.data?.previous));
+      })
       .catch(() => setError("Список кампаний не загрузился. Проверьте, что backend запущен и выполнен вход."));
     api.get("/me/", { silentError: true }).then((res) => setCurrentUser(res.data)).catch(() => setCurrentUser(null));
     api.get("/users/managers/", { silentError: true }).then((res) => setManagers(asList(res.data))).catch(() => setManagers([]));
@@ -56,7 +61,7 @@ export default function CampaignsPage() {
     api.get("/statuses/?entity_type=campaign", { silentError: true }).then((res) => setStatuses(asList(res.data))).catch(() => setStatuses([]));
   }
 
-  useEffect(load, []);
+  useEffect(load, [page, search, selectedStatus]);
 
   function defaultCampaignStatusId() {
     return statuses.find((status) => status.is_initial)?.id || statuses[0]?.id || "";
@@ -113,6 +118,7 @@ export default function CampaignsPage() {
       setForm(emptyForm);
       setEditingCampaign(null);
       setIsModalOpen(false);
+      setPage(1);
       load();
     } catch (err) {
       setError(formatApiError(err, "Кампанию не удалось сохранить."));
@@ -122,7 +128,11 @@ export default function CampaignsPage() {
   async function deleteCampaign(campaign) {
     if (!confirm(`Удалить кампанию "${campaign.name}"?`)) return;
     await api.delete(`/campaigns/${campaign.id}/`);
-    load();
+    if (page !== 1) {
+      setPage(1);
+    } else {
+      load();
+    }
   }
 
   return (
@@ -133,7 +143,7 @@ export default function CampaignsPage() {
           <h1>Рекламные кампании</h1>
         </div>
         <div className="filters">
-          <input placeholder="Поиск" value={search} onChange={(e) => setSearch(e.target.value)} />
+          <input placeholder="Поиск" value={search} onChange={(e) => { setSearch(e.target.value); setPage(1); }} />
           {canManageCampaigns && <button className="primary-button" onClick={openCreate}>Создать кампанию</button>}
         </div>
       </div>
@@ -145,21 +155,21 @@ export default function CampaignsPage() {
             <span className="section-label">Созданные записи</span>
             <h2>Список кампаний</h2>
           </div>
-          <strong>{visibleCampaigns.length} шт.</strong>
+          <strong>{campaignsCount} шт.</strong>
         </div>
         {statuses.length > 0 && (
           <label className="status-filter-select">
             <span>Статус</span>
-            <select value={selectedStatus} onChange={(event) => setSelectedStatus(event.target.value)}>
+            <select value={selectedStatus} onChange={(event) => { setSelectedStatus(event.target.value); setPage(1); }}>
               <option value="">Все статусы</option>
               {statuses.map((status) => (
-                <option key={status.id} value={status.name}>{status.name}</option>
+                <option key={status.id} value={status.id}>{status.name}</option>
               ))}
             </select>
           </label>
         )}
         <DataTable
-          rows={visibleCampaigns}
+          rows={campaigns}
           emptyText="Кампании пока не созданы или не найдены."
           columns={[
             { key: "name", title: "Название", render: (row) => <Link className="table-link" to={`/campaigns/${row.id}`}>{row.name}</Link> },
@@ -177,6 +187,11 @@ export default function CampaignsPage() {
             ) }] : []),
           ]}
         />
+        <div className="pagination-bar">
+          <button className="plain-button small" disabled={!hasPreviousPage} onClick={() => setPage((value) => Math.max(1, value - 1))}>Назад</button>
+          <span>Страница {page}</span>
+          <button className="plain-button small" disabled={!hasNextPage} onClick={() => setPage((value) => value + 1)}>Вперед</button>
+        </div>
       </section>
 
       {isModalOpen && (
