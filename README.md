@@ -23,7 +23,7 @@
 
     backend/                 Django и REST API
       config/                настройки и корневые URL
-      core/                  модели, API, права, интеграции и тесты
+      core/                  модели, API, права, интеграции
       requirements.txt       зависимости Python
     frontend/                приложение React
 
