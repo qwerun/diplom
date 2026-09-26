@@ -5,6 +5,13 @@ import DataTable from "../components/DataTable";
 import { asList } from "../utils/apiData";
 import { ROLE_LABELS } from "../utils/roles";
 
+function apiErrorMessage(error, fallback) {
+  const data = error.response?.data;
+  if (typeof data?.detail === "string") return data.detail;
+  if (typeof data === "string") return data;
+  return fallback;
+}
+
 const emptyForm = {
   username: "",
   password: "12345678",
@@ -19,6 +26,7 @@ export default function UsersPage() {
   const [modalOpen, setModalOpen] = useState(false);
   const [editingUser, setEditingUser] = useState(null);
   const [form, setForm] = useState(emptyForm);
+  const [error, setError] = useState("");
 
   function load() {
     api.get("/users/").then((res) => setUsers(asList(res.data)));
@@ -27,12 +35,14 @@ export default function UsersPage() {
   useEffect(load, []);
 
   function openCreate() {
+    setError("");
     setEditingUser(null);
     setForm(emptyForm);
     setModalOpen(true);
   }
 
   function openEdit(user) {
+    setError("");
     setEditingUser(user);
     setForm({
       username: user.username,
@@ -47,25 +57,35 @@ export default function UsersPage() {
 
   async function submit(event) {
     event.preventDefault();
+    setError("");
     const payload = { ...form };
     if (editingUser && !payload.password) {
       delete payload.password;
     }
-    if (editingUser) {
-      await api.patch(`/users/${editingUser.id}/`, payload);
-    } else {
-      await api.post("/users/", payload);
+    try {
+      if (editingUser) {
+        await api.patch(`/users/${editingUser.id}/`, payload);
+      } else {
+        await api.post("/users/", payload);
+      }
+      setModalOpen(false);
+      setEditingUser(null);
+      setForm(emptyForm);
+      load();
+    } catch (requestError) {
+      setError(apiErrorMessage(requestError, "Не удалось сохранить пользователя."));
     }
-    setModalOpen(false);
-    setEditingUser(null);
-    setForm(emptyForm);
-    load();
   }
 
   async function deleteUser(user) {
     if (!confirm(`Удалить пользователя "${user.username}"?`)) return;
-    await api.delete(`/users/${user.id}/`);
-    load();
+    setError("");
+    try {
+      await api.delete(`/users/${user.id}/`);
+      load();
+    } catch (requestError) {
+      setError(apiErrorMessage(requestError, "Не удалось удалить пользователя."));
+    }
   }
 
   return (
@@ -74,6 +94,7 @@ export default function UsersPage() {
         <h1>Пользователи</h1>
         <button className="primary-button" onClick={openCreate}>Создать пользователя</button>
       </div>
+      {error && <p className="form-error" role="alert">{error}</p>}
       <DataTable rows={users} columns={[
         { key: "username", title: "Логин" },
         { key: "full_name", title: "ФИО" },

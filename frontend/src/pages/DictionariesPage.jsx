@@ -16,6 +16,13 @@ const entityLabels = {
   activity: "Активность",
 };
 
+function apiErrorMessage(error, fallback) {
+  const data = error.response?.data;
+  if (typeof data?.detail === "string") return data.detail;
+  if (typeof data === "string") return data;
+  return fallback;
+}
+
 export default function DictionariesPage() {
   const [activeSection, setActiveSection] = useState("channels");
   const [statusTab, setStatusTab] = useState("list");
@@ -28,6 +35,7 @@ export default function DictionariesPage() {
   const [statuses, setStatuses] = useState([]);
   const [transitions, setTransitions] = useState([]);
   const [transitionDraft, setTransitionDraft] = useState([]);
+  const [error, setError] = useState("");
   const [matrixSaving, setMatrixSaving] = useState(false);
   const [channelForm, setChannelForm] = useState({ name: "", url: "" });
   const [sourceForm, setSourceForm] = useState({ name: "", type: "MANUAL", is_active: true });
@@ -118,12 +126,14 @@ export default function DictionariesPage() {
   }
 
   function openCreate() {
+    setError("");
     setEditingItem(null);
     resetForms();
     setModalOpen(true);
   }
 
   function openEdit(row) {
+    setError("");
     setEditingItem(row);
     if (activeSection === "channels") setChannelForm({ name: row.name, url: row.url || "" });
     if (activeSection === "sources") setSourceForm({ name: row.name, type: row.type, is_active: row.is_active });
@@ -141,6 +151,7 @@ export default function DictionariesPage() {
 
   async function saveItem(event) {
     event.preventDefault();
+    setError("");
     if (activeSection === "channels") {
       if (editingItem) await api.patch(`/channels/${editingItem.id}/`, channelForm);
       else await api.post("/channels/", channelForm);
@@ -165,11 +176,16 @@ export default function DictionariesPage() {
 
   async function deleteItem(row) {
     if (!confirm(`Удалить "${row.name}"?`)) return;
-    if (activeSection === "channels") await api.delete(`/channels/${row.id}/`);
-    if (activeSection === "sources") await api.delete(`/metric-sources/${row.id}/`);
-    if (activeSection === "types") await api.delete(`/metric-types/${row.id}/`);
-    if (activeSection === "statuses") await api.delete(`/statuses/${row.id}/`);
-    load();
+    setError("");
+    try {
+      if (activeSection === "channels") await api.delete(`/channels/${row.id}/`);
+      if (activeSection === "sources") await api.delete(`/metric-sources/${row.id}/`);
+      if (activeSection === "types") await api.delete(`/metric-types/${row.id}/`);
+      if (activeSection === "statuses") await api.delete(`/statuses/${row.id}/`);
+      load();
+    } catch (requestError) {
+      setError(apiErrorMessage(requestError, "Не удалось удалить запись."));
+    }
   }
 
   function isDraftTransitionEnabled(fromStatus, toStatus) {
@@ -241,6 +257,8 @@ export default function DictionariesPage() {
           </div>
           {!(activeSection === "statuses" && statusTab === "matrix") && <strong>{current.rows.length} шт.</strong>}
         </div>
+
+        {error && <p className="form-error" role="alert">{error}</p>}
 
         {activeSection === "statuses" && statusTab === "matrix" ? (
           <div className="transition-matrix-block">
