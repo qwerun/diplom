@@ -95,8 +95,8 @@ export default function UsersPage() {
         { key: "username", title: "Логин" },
         { key: "full_name", title: "ФИО" },
         { key: "email", title: "Email" },
-        { key: "role", title: "Роль", render: (row) => row.profile?.role_display },
-        { key: "actions", title: "Действия", render: (row) => (
+        { key: "role", title: "Роль", sortValue: (row) => row.profile?.role_display || "", render: (row) => row.profile?.role_display },
+        { key: "actions", title: "Действия", disableSort: true, render: (row) => (
           <div className="table-actions">
             <button className="plain-button small" onClick={() => openEdit(row)}>Изменить</button>
             <button className="danger-button small" onClick={() => deleteUser(row)}>Удалить</button>

@@ -9,7 +9,7 @@ from decimal import Decimal
 from io import BytesIO
 from openpyxl import Workbook
 from openpyxl.styles import Alignment, Font, PatternFill
-from rest_framework import decorators, permissions, response, status, viewsets
+from rest_framework import decorators, pagination, permissions, response, status, viewsets
 from rest_framework.parsers import FormParser, MultiPartParser
 from rest_framework.views import APIView
 
@@ -56,6 +56,9 @@ from .serializers import (
 )
 from .permissions import user_role
 
+
+class StandardResultsSetPagination(pagination.PageNumberPagination):
+    page_size = 10
 
 class ProtectedDeleteMixin:
     protected_delete_message = "Запись нельзя удалить, потому что она используется в других данных системы."
@@ -167,9 +170,18 @@ class CampaignViewSet(viewsets.ModelViewSet):
     queryset = Campaign.objects.select_related("responsible_user", "executor", "status")
     serializer_class = CampaignSerializer
     permission_classes = [IsManagerOrStatusOnly]
+    pagination_class = StandardResultsSetPagination
     filterset_fields = ["status", "responsible_user", "executor"]
-    search_fields = ["name", "goal"]
-    ordering_fields = ["start_date", "end_date", "budget"]
+    search_fields = ["name", "goal", "status__name", "responsible_user__first_name", "responsible_user__last_name", "executor__first_name", "executor__last_name"]
+    ordering_fields = [
+        "name",
+        "status__name",
+        "responsible_user__last_name",
+        "executor__last_name",
+        "budget",
+        "start_date",
+        "end_date",
+    ]
 
     def get_queryset(self):
         queryset = super().get_queryset()

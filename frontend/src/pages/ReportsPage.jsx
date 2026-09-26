@@ -114,10 +114,10 @@ export default function ReportsPage() {
 
       <section className="panel">
         <DataTable rows={reports} columns={[
-          { key: "campaign_names", title: "Кампании", render: (row) => row.campaign_names?.join(", ") || row.campaign_name || "—" },
+          { key: "campaign_names", title: "Кампании", sortValue: (row) => row.campaign_names?.join(", ") || row.campaign_name || "", render: (row) => row.campaign_names?.join(", ") || row.campaign_name || "—" },
           { key: "generated_by_name", title: "Сформировал" },
           { key: "create_date", title: "Дата" },
-          { key: "file_path", title: "Файл", render: (row) => <button className="table-button" onClick={() => downloadReport(row)}>Скачать XLSX</button> },
+          { key: "file_path", title: "Файл", disableSort: true, render: (row) => <button className="table-button" onClick={() => downloadReport(row)}>Скачать XLSX</button> },
         ]} />
       </section>
     </>

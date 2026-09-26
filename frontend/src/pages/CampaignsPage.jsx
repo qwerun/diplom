@@ -27,6 +27,8 @@ export default function CampaignsPage() {
   const [search, setSearch] = useState("");
   const [selectedStatus, setSelectedStatus] = useState("");
   const [page, setPage] = useState(1);
+  const [sortKey, setSortKey] = useState("start_date");
+  const [sortDirection, setSortDirection] = useState("desc");
   const [hasNextPage, setHasNextPage] = useState(false);
   const [hasPreviousPage, setHasPreviousPage] = useState(false);
   const [isModalOpen, setIsModalOpen] = useState(false);
@@ -42,7 +44,14 @@ export default function CampaignsPage() {
     const params = { page: targetPage };
     if (search.trim()) params.search = search.trim();
     if (selectedStatus) params.status = selectedStatus;
+    if (sortKey) params.ordering = `${sortDirection === "desc" ? "-" : ""}${sortKey}`;
     return params;
+  }
+
+  function sortCampaigns(column, direction) {
+    setSortKey(column.orderingKey || column.key);
+    setSortDirection(direction);
+    setPage(1);
   }
 
   function load() {
@@ -61,7 +70,7 @@ export default function CampaignsPage() {
     api.get("/statuses/?entity_type=campaign", { silentError: true }).then((res) => setStatuses(asList(res.data))).catch(() => setStatuses([]));
   }
 
-  useEffect(load, [page, search, selectedStatus]);
+  useEffect(load, [page, search, selectedStatus, sortKey, sortDirection]);
 
   function defaultCampaignStatusId() {
     return statuses.find((status) => status.is_initial)?.id || statuses[0]?.id || "";
@@ -171,15 +180,27 @@ export default function CampaignsPage() {
         <DataTable
           rows={campaigns}
           emptyText="Кампании пока не созданы или не найдены."
+          manualSort
+          sortKey={sortKey}
+          sortDirection={sortDirection}
+          onSort={sortCampaigns}
+          manualPagination={{
+            page,
+            count: campaignsCount,
+            hasPreviousPage,
+            hasNextPage,
+            onPrevious: () => setPage((value) => Math.max(1, value - 1)),
+            onNext: () => setPage((value) => value + 1),
+          }}
           columns={[
             { key: "name", title: "Название", render: (row) => <Link className="table-link" to={`/campaigns/${row.id}`}>{row.name}</Link> },
-            { key: "status_name", title: "Статус" },
-            { key: "responsible_user_name", title: "Менеджер" },
-            { key: "executor_name", title: "Исполнитель", render: (row) => row.executor_name || "Не назначен" },
+            { key: "status_name", title: "Статус", orderingKey: "status__name" },
+            { key: "responsible_user_name", title: "Менеджер", orderingKey: "responsible_user__last_name" },
+            { key: "executor_name", title: "Исполнитель", orderingKey: "executor__last_name", render: (row) => row.executor_name || "Не назначен" },
             { key: "budget", title: "Бюджет" },
             { key: "start_date", title: "Дата начала" },
             { key: "end_date", title: "Дата окончания" },
-            ...(canManageCampaigns ? [{ key: "actions", title: "Действия", render: (row) => (
+            ...(canManageCampaigns ? [{ key: "actions", title: "Действия", disableSort: true, render: (row) => (
               <div className="table-actions">
                 <button className="plain-button small" disabled={isClosed(row)} onClick={() => openEdit(row)}>Изменить</button>
                 <button className="danger-button small" onClick={() => deleteCampaign(row)}>Удалить</button>
@@ -187,11 +208,6 @@ export default function CampaignsPage() {
             ) }] : []),
           ]}
         />
-        <div className="pagination-bar">
-          <button className="plain-button small" disabled={!hasPreviousPage} onClick={() => setPage((value) => Math.max(1, value - 1))}>Назад</button>
-          <span>Страница {page}</span>
-          <button className="plain-button small" disabled={!hasNextPage} onClick={() => setPage((value) => value + 1)}>Вперед</button>
-        </div>
       </section>
 
       {isModalOpen && (

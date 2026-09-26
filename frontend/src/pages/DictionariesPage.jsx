@@ -63,7 +63,7 @@ export default function DictionariesPage() {
         columns: [
           { key: "name", title: "Название" },
           { key: "url", title: "Ссылка" },
-          { key: "actions", title: "Действия", render: (row) => actions(row) },
+          { key: "actions", title: "Действия", disableSort: true, render: (row) => actions(row) },
         ],
       };
     }
@@ -74,8 +74,8 @@ export default function DictionariesPage() {
         columns: [
           { key: "name", title: "Название" },
           { key: "type", title: "Тип" },
-          { key: "is_active", title: "Активен", render: (row) => row.is_active ? "Да" : "Нет" },
-          { key: "actions", title: "Действия", render: (row) => actions(row) },
+          { key: "is_active", title: "Активен", sortValue: (row) => row.is_active ? "Да" : "Нет", render: (row) => row.is_active ? "Да" : "Нет" },
+          { key: "actions", title: "Действия", disableSort: true, render: (row) => actions(row) },
         ],
       };
     }
@@ -86,7 +86,7 @@ export default function DictionariesPage() {
         columns: [
           { key: "name", title: "Название" },
           { key: "unit", title: "Ед. изм." },
-          { key: "actions", title: "Действия", render: (row) => actions(row) },
+          { key: "actions", title: "Действия", disableSort: true, render: (row) => actions(row) },
         ],
       };
     }
@@ -96,10 +96,10 @@ export default function DictionariesPage() {
       columns: [
         { key: "name", title: "Название" },
         { key: "code", title: "Системный код" },
-        { key: "entity_type", title: "Сущность", render: (row) => entityLabels[row.entity_type] || row.entity_type },
-        { key: "is_initial", title: "Начальный", render: (row) => row.is_initial ? "Да" : "Нет" },
-        { key: "is_terminal", title: "Конечный", render: (row) => row.is_terminal ? "Да" : "Нет" },
-        { key: "locks_fields", title: "Блокирует поля", render: (row) => row.locks_fields ? "Да" : "Нет" },
+        { key: "entity_type", title: "Сущность", sortValue: (row) => entityLabels[row.entity_type] || row.entity_type, render: (row) => entityLabels[row.entity_type] || row.entity_type },
+        { key: "is_initial", title: "Начальный", sortValue: (row) => row.is_initial ? "Да" : "Нет", render: (row) => row.is_initial ? "Да" : "Нет" },
+        { key: "is_terminal", title: "Конечный", sortValue: (row) => row.is_terminal ? "Да" : "Нет", render: (row) => row.is_terminal ? "Да" : "Нет" },
+        { key: "locks_fields", title: "Блокирует поля", sortValue: (row) => row.locks_fields ? "Да" : "Нет", render: (row) => row.locks_fields ? "Да" : "Нет" },
         { key: "actions", title: "Действия", render: (row) => actions(row) },
       ],
     };
