@@ -1,5 +1,6 @@
 from django.contrib.auth.models import User
 from django.db.models import Count, Q, Sum
+from django.db.models.deletion import ProtectedError
 import mimetypes
 from pathlib import Path
 
@@ -56,6 +57,28 @@ from .serializers import (
 from .permissions import user_role
 
 
+class ProtectedDeleteMixin:
+    protected_delete_message = "Запись нельзя удалить, потому что она используется в других данных системы."
+    protected_related_checks = []
+
+    def get_protected_delete_message(self, instance):
+        for related_name, message in self.protected_related_checks:
+            related = getattr(instance, related_name, None)
+            if related is not None and related.exists():
+                return message
+        return self.protected_delete_message
+
+    def destroy(self, request, *args, **kwargs):
+        instance = self.get_object()
+        message = self.get_protected_delete_message(instance)
+        if message != self.protected_delete_message:
+            return response.Response({"detail": message}, status=status.HTTP_400_BAD_REQUEST)
+        try:
+            return super().destroy(request, *args, **kwargs)
+        except ProtectedError:
+            return response.Response({"detail": self.protected_delete_message}, status=status.HTTP_400_BAD_REQUEST)
+
+
 class MeView(APIView):
     permission_classes = [permissions.IsAuthenticated]
 
@@ -69,11 +92,15 @@ class MeView(APIView):
         return response.Response(UserSerializer(request.user).data)
 
 
-class UserViewSet(viewsets.ModelViewSet):
+class UserViewSet(ProtectedDeleteMixin, viewsets.ModelViewSet):
     queryset = User.objects.select_related("profile").all().order_by("username")
     serializer_class = UserSerializer
     permission_classes = [IsAdmin]
     search_fields = ["username", "first_name", "last_name", "email"]
+    protected_delete_message = "Пользователя нельзя удалить, потому что он связан с кампаниями или другими записями системы."
+    protected_related_checks = [
+        ("campaigns", "Пользователя нельзя удалить, потому что он указан ответственным за рекламные кампании."),
+    ]
 
     def get_permissions(self):
         if self.action == "executors":
@@ -86,11 +113,18 @@ class UserViewSet(viewsets.ModelViewSet):
         return response.Response(UserSerializer(users, many=True).data)
 
 
-class StatusViewSet(viewsets.ModelViewSet):
+class StatusViewSet(ProtectedDeleteMixin, viewsets.ModelViewSet):
     queryset = Status.objects.all()
     serializer_class = StatusSerializer
     permission_classes = [IsAdminOrReadOnly]
     filterset_fields = ["entity_type"]
+    protected_delete_message = "Статус нельзя удалить, потому что он используется в кампаниях, активностях или переходах."
+    protected_related_checks = [
+        ("campaigns", "Статус нельзя удалить, потому что он используется в рекламных кампаниях."),
+        ("activities", "Статус нельзя удалить, потому что он используется в активностях."),
+        ("outgoing_transitions", "Статус нельзя удалить, потому что для него настроены переходы."),
+        ("incoming_transitions", "Статус нельзя удалить, потому что на него настроены переходы."),
+    ]
 
 
 class StatusTransitionViewSet(viewsets.ModelViewSet):
@@ -106,11 +140,15 @@ class StatusTransitionViewSet(viewsets.ModelViewSet):
         return queryset
 
 
-class ChannelViewSet(viewsets.ModelViewSet):
+class ChannelViewSet(ProtectedDeleteMixin, viewsets.ModelViewSet):
     queryset = Channel.objects.all()
     serializer_class = ChannelSerializer
     permission_classes = [IsAdminOrReadOnly]
     search_fields = ["name"]
+    protected_delete_message = "Канал нельзя удалить, потому что он используется в активностях."
+    protected_related_checks = [
+        ("activities", "Канал нельзя удалить, потому что он используется в активностях."),
+    ]
 
 
 class MetricSourceViewSet(viewsets.ModelViewSet):
@@ -263,10 +301,14 @@ class ActivityMediaViewSet(viewsets.ModelViewSet):
         return FileResponse(file_handle, as_attachment=True, filename=filename, content_type=content_type)
 
 
-class MetricTypeViewSet(viewsets.ModelViewSet):
+class MetricTypeViewSet(ProtectedDeleteMixin, viewsets.ModelViewSet):
     queryset = MetricType.objects.all()
     serializer_class = MetricTypeSerializer
     permission_classes = [IsAdminOrReadOnly]
+    protected_delete_message = "Тип метрики нельзя удалить, потому что по нему сохранены значения метрик."
+    protected_related_checks = [
+        ("values", "Тип метрики нельзя удалить, потому что по нему сохранены значения метрик."),
+    ]
 
 
 class MetricValueViewSet(viewsets.ModelViewSet):
