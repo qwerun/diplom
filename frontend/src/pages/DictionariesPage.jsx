@@ -2,6 +2,7 @@ import { useEffect, useMemo, useState } from "react";
 
 import api from "../api/client";
 import DataTable from "../components/DataTable";
+import ErrorDialog from "../components/ErrorDialog";
 import { asList } from "../utils/apiData";
 import { formatApiError } from "../utils/apiErrors";
 
@@ -257,8 +258,6 @@ export default function DictionariesPage() {
           {!(activeSection === "statuses" && statusTab === "matrix") && <strong>{current.rows.length} шт.</strong>}
         </div>
 
-        {error && <p className="form-error" role="alert">{error}</p>}
-
         {activeSection === "statuses" && statusTab === "matrix" ? (
           <div className="transition-matrix-block">
             <div className="transition-matrix-toolbar">
@@ -317,6 +316,8 @@ export default function DictionariesPage() {
           <DataTable rows={current.rows} columns={current.columns} />
         )}
       </section>
+
+      <ErrorDialog message={error} onClose={() => setError("")} />
 
       {modalOpen && (
         <div className="modal-backdrop">

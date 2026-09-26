@@ -2,6 +2,7 @@ import { useEffect, useState } from "react";
 
 import api from "../api/client";
 import DataTable from "../components/DataTable";
+import ErrorDialog from "../components/ErrorDialog";
 import { asList } from "../utils/apiData";
 import { ROLE_LABELS } from "../utils/roles";
 import { formatApiError } from "../utils/apiErrors";
@@ -89,7 +90,7 @@ export default function UsersPage() {
         <h1>Пользователи</h1>
         <button className="primary-button" onClick={openCreate}>Создать пользователя</button>
       </div>
-      {error && <p className="form-error" role="alert">{error}</p>}
+      <ErrorDialog message={error} onClose={() => setError("")} />
       <DataTable rows={users} columns={[
         { key: "username", title: "Логин" },
         { key: "full_name", title: "ФИО" },

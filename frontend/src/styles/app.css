@@ -819,6 +819,46 @@ textarea {
   box-shadow: 0 24px 60px rgba(8, 33, 61, 0.25);
 }
 
+.error-dialog-backdrop {
+  position: fixed;
+  inset: 0;
+  z-index: 60;
+  display: grid;
+  place-items: center;
+  padding: 24px;
+  background: rgba(8, 33, 61, 0.52);
+}
+
+.error-dialog {
+  width: min(520px, 100%);
+  background: #fff;
+  border: 1px solid #fecdd3;
+  border-radius: 12px;
+  padding: 22px;
+  box-shadow: 0 28px 70px rgba(8, 33, 61, 0.32);
+}
+
+.error-dialog-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 14px;
+  margin-bottom: 14px;
+}
+
+.error-dialog h2 {
+  margin: 0;
+  color: #9f1239;
+  font-size: 20px;
+}
+
+.error-dialog p {
+  margin: 0;
+  color: #9f1239;
+  font-weight: 700;
+  line-height: 1.5;
+}
+
 .modal-header,
 .modal-actions {
   display: flex;
