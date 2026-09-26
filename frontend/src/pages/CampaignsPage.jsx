@@ -74,7 +74,6 @@ export default function CampaignsPage() {
     setError("");
     setForm({
       ...emptyForm,
-      status: defaultCampaignStatusId(),
       responsible_user: users.length === 1 ? users[0].id : "",
       executor: "",
     });
@@ -110,7 +109,8 @@ export default function CampaignsPage() {
     if (editingCampaign) {
       await api.patch(`/campaigns/${editingCampaign.id}/`, { ...form, executor: form.executor || null });
     } else {
-      await api.post("/campaigns/", { ...form, executor: form.executor || null, status: form.status || defaultCampaignStatusId() });
+      const { status, ...createForm } = form;
+      await api.post("/campaigns/", { ...createForm, executor: form.executor || null });
     }
     setForm(emptyForm);
     setEditingCampaign(null);

@@ -202,12 +202,12 @@ class CampaignSerializer(serializers.ModelSerializer):
             raise serializers.ValidationError("Бюджет не может быть отрицательным.")
         if start_date and end_date and end_date < start_date:
             raise serializers.ValidationError("Дата окончания не может быть раньше даты начала.")
-        if not self.instance and new_status:
-            raise serializers.ValidationError({
-                "status": "При создании кампании статус задается системой как начальный."
-            })
         if new_status and new_status.entity_type != Status.ENTITY_CAMPAIGN:
             raise serializers.ValidationError("Для кампании выбран неподходящий тип статуса.")
+        if not self.instance and new_status and new_status.is_terminal:
+            raise serializers.ValidationError({
+                "status": "Кампанию нельзя создать сразу в конечном статусе."
+            })
         if self.instance and new_status and new_status != self.instance.status:
             exists = StatusTransition.objects.filter(
                 from_status=self.instance.status,
