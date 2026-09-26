@@ -32,6 +32,12 @@ def default_status(entity_type):
     return status
 
 
+def validate_executor_activity_access(request, activity, message):
+    if request and user_role(request.user) == UserProfile.ROLE_EXECUTOR:
+        if not activity or activity.campaign.executor_id != request.user.id:
+            raise serializers.ValidationError({"activity": message})
+
+
 class UserProfileSerializer(serializers.ModelSerializer):
     role_display = serializers.CharField(source="get_role_display", read_only=True)
 
@@ -293,11 +299,11 @@ class ActivityResultSerializer(serializers.ModelSerializer):
     def validate(self, attrs):
         activity = attrs.get("activity", getattr(self.instance, "activity", None))
         request = self.context.get("request")
-        if request and user_role(request.user) == UserProfile.ROLE_EXECUTOR:
-            if not activity or activity.campaign.executor_id != request.user.id:
-                raise serializers.ValidationError({
-                    "activity": "Результат можно добавить только к активности назначенной кампании."
-                })
+        validate_executor_activity_access(
+            request,
+            activity,
+            "Результат можно добавить только к активности назначенной кампании.",
+        )
         if activity and activity.status.is_terminal:
             raise serializers.ValidationError("Для закрытой активности нельзя менять результат.")
         return attrs
@@ -351,11 +357,11 @@ class ActivityMediaSerializer(serializers.ModelSerializer):
     def validate(self, attrs):
         activity = attrs.get("activity", getattr(self.instance, "activity", None))
         request = self.context.get("request")
-        if request and user_role(request.user) == UserProfile.ROLE_EXECUTOR:
-            if not activity or activity.campaign.executor_id != request.user.id:
-                raise serializers.ValidationError({
-                    "activity": "Файл можно прикрепить только к активности назначенной кампании."
-                })
+        validate_executor_activity_access(
+            request,
+            activity,
+            "Файл можно прикрепить только к активности назначенной кампании.",
+        )
         if activity and activity.status.is_terminal:
             raise serializers.ValidationError(
                 "К завершенной или отмененной активности нельзя прикреплять файлы."
@@ -393,11 +399,11 @@ class MetricValueSerializer(serializers.ModelSerializer):
         request = self.context.get("request")
         planned = attrs.get("planned_value", getattr(self.instance, "planned_value", 0))
         actual = attrs.get("actual_value", getattr(self.instance, "actual_value", 0))
-        if request and user_role(request.user) == UserProfile.ROLE_EXECUTOR:
-            if not activity or activity.campaign.executor_id != request.user.id:
-                raise serializers.ValidationError({
-                    "activity": "Метрики можно добавить только к активности назначенной кампании."
-                })
+        validate_executor_activity_access(
+            request,
+            activity,
+            "Метрики можно добавить только к активности назначенной кампании.",
+        )
         if activity and activity.status.is_terminal:
             raise serializers.ValidationError("Для закрытой активности нельзя менять метрики.")
         if planned < 0 or actual < 0:
