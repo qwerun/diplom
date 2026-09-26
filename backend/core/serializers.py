@@ -188,8 +188,18 @@ class CampaignSerializer(serializers.ModelSerializer):
         end_date = attrs.get("end_date", getattr(self.instance, "end_date", None))
         budget = attrs.get("budget", getattr(self.instance, "budget", 0))
         new_status = attrs.get("status")
+        responsible_user = attrs.get("responsible_user", getattr(self.instance, "responsible_user", None))
         executor = attrs.get("executor", getattr(self.instance, "executor", None))
-    
+
+        if responsible_user and getattr(
+            getattr(responsible_user, "profile", None),
+            "role",
+            None,
+        ) != UserProfile.ROLE_MANAGER:
+            raise serializers.ValidationError({
+                "responsible_user": "Ответственным можно назначить только пользователя с ролью «Менеджер»."
+            })
+
         if executor and getattr(
             getattr(executor, "profile", None),
             "role",
