@@ -1,6 +1,7 @@
 import { useEffect, useState } from "react";
 
 import api from "../api/client";
+import { formatApiError } from "../utils/apiErrors";
 import DataTable from "../components/DataTable";
 import { asList } from "../utils/apiData";
 
@@ -45,7 +46,7 @@ export default function ReportsPage() {
       setSelectedCampaigns([]);
       load();
     } catch (requestError) {
-      setError(requestError.response?.data?.campaigns || "Не удалось сформировать отчет.");
+      setError(formatApiError(requestError, "Не удалось сформировать отчет."));
     }
   }
 

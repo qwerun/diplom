@@ -2,6 +2,7 @@ import { useEffect, useMemo, useState } from "react";
 import { Link, useParams } from "react-router-dom";
 
 import api from "../api/client";
+import { formatApiError } from "../utils/apiErrors";
 import { asList } from "../utils/apiData";
 import { CAN_CHANGE_STATUS, CAN_EDIT_EXECUTION, CAN_MANAGE_CAMPAIGNS } from "../utils/roles";
 import { getStatusOptions } from "../utils/statusTransitions";
@@ -104,7 +105,7 @@ export default function ActivityDetailPage() {
       setMetrics(data.metrics || []);
       setMetricsMessage(data.detail || "Метрики обновлены.");
     } catch (error) {
-      setMetricsMessage(error.response?.data?.detail || "Не удалось обновить метрики.");
+      setMetricsMessage(formatApiError(error, "Не удалось обновить метрики."));
     } finally {
       setMetricsLoading(false);
     }
@@ -140,22 +141,7 @@ export default function ActivityDetailPage() {
       setMediaModalOpen(false);
       load();
     } catch (error) {
-      const data = error.response?.data;
-      if (typeof data === "string") {
-        setMediaError(
-          data.includes("<!DOCTYPE") || data.includes("<html")
-            ? "Сервер вернул техническую ошибку. Проверьте миграции и повторите загрузку."
-            : data
-        );
-      } else if (data?.detail) {
-        setMediaError(data.detail);
-      } else if (data?.file) {
-        setMediaError(Array.isArray(data.file) ? data.file.join(" ") : data.file);
-      } else if (data?.activity) {
-        setMediaError(Array.isArray(data.activity) ? data.activity.join(" ") : data.activity);
-      } else {
-        setMediaError("Файл не загрузился. Проверьте, что миграции применены и сервер запущен.");
-      }
+      setMediaError(formatApiError(error, "Файл не загрузился. Проверьте, что миграции применены и сервер запущен."));
     } finally {
       setMediaUploading(false);
     }

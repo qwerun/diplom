@@ -1,16 +1,10 @@
 import { useEffect, useState } from "react";
 
 import api from "../api/client";
+import { formatApiError } from "../utils/apiErrors";
 
 const emptyPasswordForm = { current_password: "", new_password: "", confirm_password: "" };
 
-function formatError(error, fallback) {
-  const data = error.response?.data;
-  if (!data || typeof data !== "object") return fallback;
-  if (data.detail) return data.detail;
-  const first = Object.values(data)[0];
-  return Array.isArray(first) ? first.join(" ") : String(first || fallback);
-}
 
 export default function ProfilePage() {
   const [user, setUser] = useState(null);
@@ -46,7 +40,7 @@ export default function ProfilePage() {
       setUser(data);
       setProfileMessage("Данные профиля сохранены.");
     } catch (error) {
-      setProfileError(formatError(error, "Не удалось сохранить профиль."));
+      setProfileError(formatApiError(error, "Не удалось сохранить профиль."));
     } finally {
       setSavingProfile(false);
     }
@@ -69,7 +63,7 @@ export default function ProfilePage() {
       setPasswordForm(emptyPasswordForm);
       setPasswordMessage("Пароль изменён.");
     } catch (error) {
-      setPasswordError(formatError(error, "Не удалось изменить пароль."));
+      setPasswordError(formatApiError(error, "Не удалось изменить пароль."));
     } finally {
       setSavingPassword(false);
     }

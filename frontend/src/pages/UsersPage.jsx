@@ -4,13 +4,8 @@ import api from "../api/client";
 import DataTable from "../components/DataTable";
 import { asList } from "../utils/apiData";
 import { ROLE_LABELS } from "../utils/roles";
+import { formatApiError } from "../utils/apiErrors";
 
-function apiErrorMessage(error, fallback) {
-  const data = error.response?.data;
-  if (typeof data?.detail === "string") return data.detail;
-  if (typeof data === "string") return data;
-  return fallback;
-}
 
 const emptyForm = {
   username: "",
@@ -73,7 +68,7 @@ export default function UsersPage() {
       setForm(emptyForm);
       load();
     } catch (requestError) {
-      setError(apiErrorMessage(requestError, "Не удалось сохранить пользователя."));
+      setError(formatApiError(requestError, "Не удалось сохранить пользователя."));
     }
   }
 
@@ -84,7 +79,7 @@ export default function UsersPage() {
       await api.delete(`/users/${user.id}/`);
       load();
     } catch (requestError) {
-      setError(apiErrorMessage(requestError, "Не удалось удалить пользователя."));
+      setError(formatApiError(requestError, "Не удалось удалить пользователя."));
     }
   }
 

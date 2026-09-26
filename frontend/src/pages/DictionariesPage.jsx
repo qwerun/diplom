@@ -3,6 +3,7 @@ import { useEffect, useMemo, useState } from "react";
 import api from "../api/client";
 import DataTable from "../components/DataTable";
 import { asList } from "../utils/apiData";
+import { formatApiError } from "../utils/apiErrors";
 
 const sections = [
   { id: "channels", label: "Каналы" },
@@ -16,12 +17,6 @@ const entityLabels = {
   activity: "Активность",
 };
 
-function apiErrorMessage(error, fallback) {
-  const data = error.response?.data;
-  if (typeof data?.detail === "string") return data.detail;
-  if (typeof data === "string") return data;
-  return fallback;
-}
 
 export default function DictionariesPage() {
   const [activeSection, setActiveSection] = useState("channels");
@@ -152,26 +147,30 @@ export default function DictionariesPage() {
   async function saveItem(event) {
     event.preventDefault();
     setError("");
-    if (activeSection === "channels") {
-      if (editingItem) await api.patch(`/channels/${editingItem.id}/`, channelForm);
-      else await api.post("/channels/", channelForm);
+    try {
+      if (activeSection === "channels") {
+        if (editingItem) await api.patch(`/channels/${editingItem.id}/`, channelForm);
+        else await api.post("/channels/", channelForm);
+      }
+      if (activeSection === "sources") {
+        if (editingItem) await api.patch(`/metric-sources/${editingItem.id}/`, sourceForm);
+        else await api.post("/metric-sources/", sourceForm);
+      }
+      if (activeSection === "types") {
+        if (editingItem) await api.patch(`/metric-types/${editingItem.id}/`, typeForm);
+        else await api.post("/metric-types/", typeForm);
+      }
+      if (activeSection === "statuses") {
+        if (editingItem) await api.patch(`/statuses/${editingItem.id}/`, statusForm);
+        else await api.post("/statuses/", statusForm);
+      }
+      setEditingItem(null);
+      setModalOpen(false);
+      resetForms();
+      load();
+    } catch (requestError) {
+      setError(formatApiError(requestError, "Не удалось сохранить запись."));
     }
-    if (activeSection === "sources") {
-      if (editingItem) await api.patch(`/metric-sources/${editingItem.id}/`, sourceForm);
-      else await api.post("/metric-sources/", sourceForm);
-    }
-    if (activeSection === "types") {
-      if (editingItem) await api.patch(`/metric-types/${editingItem.id}/`, typeForm);
-      else await api.post("/metric-types/", typeForm);
-    }
-    if (activeSection === "statuses") {
-      if (editingItem) await api.patch(`/statuses/${editingItem.id}/`, statusForm);
-      else await api.post("/statuses/", statusForm);
-    }
-    setEditingItem(null);
-    setModalOpen(false);
-    resetForms();
-    load();
   }
 
   async function deleteItem(row) {
@@ -184,7 +183,7 @@ export default function DictionariesPage() {
       if (activeSection === "statuses") await api.delete(`/statuses/${row.id}/`);
       load();
     } catch (requestError) {
-      setError(apiErrorMessage(requestError, "Не удалось удалить запись."));
+      setError(formatApiError(requestError, "Не удалось удалить запись."));
     }
   }
 
