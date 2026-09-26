@@ -4,14 +4,14 @@ export default function ErrorDialog({ message, onClose }) {
   return (
     <div className="error-dialog-backdrop" role="alertdialog" aria-modal="true" aria-labelledby="error-dialog-title">
       <div className="error-dialog">
-        <div className="error-dialog-header">
-          <h2 id="error-dialog-title">Ошибка</h2>
-          <button type="button" className="plain-button small" onClick={onClose}>Закрыть</button>
+        <button type="button" className="error-dialog-close" onClick={onClose} aria-label="Закрыть">×</button>
+        <div className="error-dialog-icon">!</div>
+        <div>
+          <p className="error-dialog-kicker">Не удалось выполнить действие</p>
+          <h2 id="error-dialog-title">Проверьте данные</h2>
+          <p className="error-dialog-message">{message}</p>
         </div>
-        <p>{message}</p>
-        <div className="modal-actions">
-          <button type="button" className="primary-button" onClick={onClose}>Окей</button>
-        </div>
+        <button type="button" className="primary-button error-dialog-action" onClick={onClose}>Понятно</button>
       </div>
     </div>
   );

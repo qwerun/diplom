@@ -50,10 +50,10 @@ export default function CampaignsPage() {
     api.get("/campaigns/")
       .then((res) => setCampaigns(asList(res.data)))
       .catch(() => setError("Список кампаний не загрузился. Проверьте, что backend запущен и выполнен вход."));
-    api.get("/me/").then((res) => setCurrentUser(res.data)).catch(() => setCurrentUser(null));
-    api.get("/users/managers/").then((res) => setManagers(asList(res.data))).catch(() => setManagers([]));
-    api.get("/users/executors/").then((res) => setExecutors(asList(res.data))).catch(() => setExecutors([]));
-    api.get("/statuses/?entity_type=campaign").then((res) => setStatuses(asList(res.data))).catch(() => setStatuses([]));
+    api.get("/me/", { silentError: true }).then((res) => setCurrentUser(res.data)).catch(() => setCurrentUser(null));
+    api.get("/users/managers/", { silentError: true }).then((res) => setManagers(asList(res.data))).catch(() => setManagers([]));
+    api.get("/users/executors/", { silentError: true }).then((res) => setExecutors(asList(res.data))).catch(() => setExecutors([]));
+    api.get("/statuses/?entity_type=campaign", { silentError: true }).then((res) => setStatuses(asList(res.data))).catch(() => setStatuses([]));
   }
 
   useEffect(load, []);

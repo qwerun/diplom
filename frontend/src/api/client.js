@@ -1,5 +1,7 @@
 import axios from "axios";
 
+import { formatErrorData } from "../utils/apiErrors";
+
 const api = axios.create({
   baseURL: import.meta.env.VITE_API_URL || "http://127.0.0.1:8000/api",
 });
@@ -15,7 +17,7 @@ api.interceptors.request.use((config) => {
 api.interceptors.response.use(
   (response) => response,
   async (error) => {
-    const originalRequest = error.config;
+    const originalRequest = error.config || {};
     const refreshToken = localStorage.getItem("refreshToken");
 
     if (error.response?.status === 401 && refreshToken && !originalRequest._retry) {
@@ -30,6 +32,14 @@ api.interceptors.response.use(
       } catch (refreshError) {
         logout();
       }
+    }
+
+    if (error.response?.status !== 401 && !originalRequest?.silentError) {
+      setTimeout(() => {
+        if (error.__handled) return;
+        const message = formatErrorData(error.response?.data, "Ошибка сервера. Попробуйте повторить действие.");
+        window.dispatchEvent(new CustomEvent("api-error", { detail: { message } }));
+      }, 0);
     }
 
     return Promise.reject(error);

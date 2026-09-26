@@ -44,7 +44,7 @@ export default function ActivityDetailPage() {
     api.get("/statuses/?entity_type=activity").then((res) => setStatuses(asList(res.data)));
     api.get("/status-transitions/?entity_type=activity").then((res) => setStatusTransitions(asList(res.data)));
     api.get(`/activity-media/?activity=${id}`).then((res) => setMediaFiles(asList(res.data)));
-    api.get("/me/").then((res) => setCurrentUser(res.data)).catch(() => setCurrentUser(null));
+    api.get("/me/", { silentError: true }).then((res) => setCurrentUser(res.data)).catch(() => setCurrentUser(null));
   }
 
   useEffect(load, [id]);

@@ -45,8 +45,8 @@ export default function CampaignDetailPage() {
     api.get("/statuses/?entity_type=campaign").then((res) => setCampaignStatuses(asList(res.data)));
     api.get("/status-transitions/?entity_type=activity").then((res) => setActivityTransitions(asList(res.data)));
     api.get("/status-transitions/?entity_type=campaign").then((res) => setCampaignTransitions(asList(res.data)));
-    api.get("/me/").then((res) => setCurrentUser(res.data)).catch(() => setCurrentUser(null));
-    api.get("/users/executors/").then((res) => setExecutors(asList(res.data))).catch(() => setExecutors([]));
+    api.get("/me/", { silentError: true }).then((res) => setCurrentUser(res.data)).catch(() => setCurrentUser(null));
+    api.get("/users/executors/", { silentError: true }).then((res) => setExecutors(asList(res.data))).catch(() => setExecutors([]));
   }
 
   useEffect(load, [id]);

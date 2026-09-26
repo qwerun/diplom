@@ -18,6 +18,8 @@ const FIELD_LABELS = {
   budget: "Бюджет",
   goal: "Цель",
   status: "Статус",
+  responsible_user: "Ответственный менеджер",
+  executor: "Исполнитель",
   channel: "Канал",
   metric_source: "Источник метрик",
   metric_type: "Тип метрики",
@@ -39,7 +41,7 @@ function fieldLabel(field) {
   return FIELD_LABELS[field] || field;
 }
 
-function formatErrorData(data, fallback) {
+export function formatErrorData(data, fallback) {
   if (typeof data === "string") {
     return data.includes("<!DOCTYPE") || data.includes("<html")
       ? fallback
@@ -61,5 +63,8 @@ function formatErrorData(data, fallback) {
 }
 
 export function formatApiError(error, fallback = "Произошла ошибка.") {
+  if (error && typeof error === "object") {
+    error.__handled = true;
+  }
   return formatErrorData(error?.response?.data, fallback);
 }

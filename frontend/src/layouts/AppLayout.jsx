@@ -3,6 +3,7 @@ import { NavLink, Outlet, useLocation, useNavigate } from "react-router-dom";
 import { useEffect, useMemo, useState } from "react";
 
 import api, { logout } from "../api/client";
+import ErrorDialog from "../components/ErrorDialog";
 import { CAN_VIEW_REPORTS, ROLES } from "../utils/roles";
 
 const logoUrl = `${import.meta.env.BASE_URL}logo-muiv.svg`;
@@ -20,6 +21,7 @@ export default function AppLayout() {
   const navigate = useNavigate();
   const location = useLocation();
   const [currentUser, setCurrentUser] = useState(null);
+  const [globalError, setGlobalError] = useState("");
 
   const role = currentUser?.profile?.role;
   const isAdmin = role === ROLES.ADMIN;
@@ -30,7 +32,15 @@ export default function AppLayout() {
   }), [isAdmin, role]);
 
   useEffect(() => {
-    api.get("/me/").then((res) => setCurrentUser(res.data)).catch(() => {
+    function handleApiError(event) {
+      setGlobalError(event.detail?.message || "Ошибка сервера. Попробуйте повторить действие.");
+    }
+    window.addEventListener("api-error", handleApiError);
+    return () => window.removeEventListener("api-error", handleApiError);
+  }, []);
+
+  useEffect(() => {
+    api.get("/me/", { silentError: true }).then((res) => setCurrentUser(res.data)).catch(() => {
       logout();
       navigate("/login");
     });
@@ -82,6 +92,7 @@ export default function AppLayout() {
           <Outlet />
         </section>
       </main>
+      <ErrorDialog message={globalError} onClose={() => setGlobalError("")} />
       <footer className="site-footer">
         Автор работы: <strong>Виноградов Роман Владимирович</strong>
       </footer>
