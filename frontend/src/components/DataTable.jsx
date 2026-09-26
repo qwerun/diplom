@@ -18,6 +18,10 @@ function compareValues(left, right) {
   return String(left).localeCompare(String(right), "ru-RU", { numeric: true, sensitivity: "base" });
 }
 
+function columnSortKey(column) {
+  return column.orderingKey || column.key;
+}
+
 function nextDirection(currentKey, currentDirection, key) {
   if (currentKey !== key) return "asc";
   return currentDirection === "asc" ? "desc" : "asc";
@@ -46,11 +50,12 @@ export default function DataTable({
 
   function changeSort(column) {
     if (column.disableSort || column.key === "actions") return;
-    const direction = nextDirection(sortKey, sortDirection, column.key);
+    const key = columnSortKey(column);
+    const direction = nextDirection(sortKey, sortDirection, key);
     if (onSort) {
       onSort(column, direction);
     } else {
-      setInternalSortKey(column.key);
+      setInternalSortKey(key);
       setInternalSortDirection(direction);
       setInternalPage(1);
     }
@@ -58,7 +63,7 @@ export default function DataTable({
 
   const sortedRows = useMemo(() => {
     if (manualSort || !sortKey) return rows;
-    const column = sortableColumns.find((item) => item.key === sortKey);
+    const column = sortableColumns.find((item) => columnSortKey(item) === sortKey);
     if (!column) return rows;
     const direction = sortDirection === "desc" ? -1 : 1;
     return [...rows].sort((left, right) => compareValues(valueForSort(left, column), valueForSort(right, column)) * direction);
@@ -75,6 +80,8 @@ export default function DataTable({
   const pager = manualPagination || (pagination && sortedRows.length > pageSize ? {
     page: currentPage,
     count: sortedRows.length,
+    from: (currentPage - 1) * pageSize + 1,
+    to: Math.min(currentPage * pageSize, sortedRows.length),
     hasPreviousPage: currentPage > 1,
     hasNextPage: currentPage < pageCount,
     onPrevious: () => setInternalPage((value) => Math.max(1, value - 1)),
@@ -89,7 +96,7 @@ export default function DataTable({
             <tr>
               {columns.map((column) => {
                 const sortable = !column.disableSort && column.key !== "actions";
-                const active = sortKey === column.key;
+                const active = sortKey === columnSortKey(column);
                 return (
                   <th key={column.key}>
                     {sortable ? (
@@ -121,9 +128,12 @@ export default function DataTable({
       </div>
       {pager && (
         <div className="pagination-bar">
-          <button className="plain-button small" disabled={!pager.hasPreviousPage} onClick={pager.onPrevious}>Назад</button>
-          <span>Страница {pager.page}</span>
-          <button className="plain-button small" disabled={!pager.hasNextPage} onClick={pager.onNext}>Вперед</button>
+          <span className="pagination-count">{pager.from ?? 0}–{pager.to ?? 0} из {pager.count ?? 0}</span>
+          <div className="pagination-controls">
+            <button type="button" className="pagination-button" disabled={!pager.hasPreviousPage} onClick={pager.onPrevious} aria-label="Предыдущая страница">‹</button>
+            <span className="pagination-page">{pager.page}</span>
+            <button type="button" className="pagination-button" disabled={!pager.hasNextPage} onClick={pager.onNext} aria-label="Следующая страница">›</button>
+          </div>
         </div>
       )}
     </>

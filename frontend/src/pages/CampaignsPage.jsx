@@ -31,6 +31,7 @@ export default function CampaignsPage() {
   const [sortDirection, setSortDirection] = useState("desc");
   const [hasNextPage, setHasNextPage] = useState(false);
   const [hasPreviousPage, setHasPreviousPage] = useState(false);
+  const pageSize = 10;
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [editingCampaign, setEditingCampaign] = useState(null);
   const [error, setError] = useState("");
@@ -187,6 +188,8 @@ export default function CampaignsPage() {
           manualPagination={{
             page,
             count: campaignsCount,
+            from: campaignsCount === 0 ? 0 : (page - 1) * pageSize + 1,
+            to: Math.min(page * pageSize, campaignsCount),
             hasPreviousPage,
             hasNextPage,
             onPrevious: () => setPage((value) => Math.max(1, value - 1)),
