@@ -103,13 +103,18 @@ class UserViewSet(ProtectedDeleteMixin, viewsets.ModelViewSet):
     ]
 
     def get_permissions(self):
-        if self.action == "executors":
+        if self.action in {"executors", "managers"}:
             return [permissions.IsAuthenticated()]
         return super().get_permissions()
 
     @decorators.action(detail=False, methods=["get"])
     def executors(self, request):
-        users = self.get_queryset().filter(profile__role="executor", is_active=True)
+        users = self.get_queryset().filter(profile__role=UserProfile.ROLE_EXECUTOR, is_active=True)
+        return response.Response(UserSerializer(users, many=True).data)
+
+    @decorators.action(detail=False, methods=["get"])
+    def managers(self, request):
+        users = self.get_queryset().filter(profile__role=UserProfile.ROLE_MANAGER, is_active=True)
         return response.Response(UserSerializer(users, many=True).data)
 
 

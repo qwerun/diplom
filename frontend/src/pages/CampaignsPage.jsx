@@ -4,6 +4,7 @@ import { Link } from "react-router-dom";
 import api from "../api/client";
 import DataTable from "../components/DataTable";
 import { asList } from "../utils/apiData";
+import { formatApiError } from "../utils/apiErrors";
 import { CAN_MANAGE_CAMPAIGNS } from "../utils/roles";
 
 const emptyForm = {
@@ -19,7 +20,7 @@ const emptyForm = {
 
 export default function CampaignsPage() {
   const [campaigns, setCampaigns] = useState([]);
-  const [users, setUsers] = useState([]);
+  const [managers, setManagers] = useState([]);
   const [statuses, setStatuses] = useState([]);
   const [executors, setExecutors] = useState([]);
   const [search, setSearch] = useState("");
@@ -50,11 +51,7 @@ export default function CampaignsPage() {
       .then((res) => setCampaigns(asList(res.data)))
       .catch(() => setError("Список кампаний не загрузился. Проверьте, что backend запущен и выполнен вход."));
     api.get("/me/").then((res) => setCurrentUser(res.data)).catch(() => setCurrentUser(null));
-    api.get("/users/")
-      .then((res) => setUsers(asList(res.data)))
-      .catch(() => {
-        api.get("/me/").then((res) => setUsers([res.data])).catch(() => setUsers([]));
-      });
+    api.get("/users/managers/").then((res) => setManagers(asList(res.data))).catch(() => setManagers([]));
     api.get("/users/executors/").then((res) => setExecutors(asList(res.data))).catch(() => setExecutors([]));
     api.get("/statuses/?entity_type=campaign").then((res) => setStatuses(asList(res.data))).catch(() => setStatuses([]));
   }
@@ -74,7 +71,7 @@ export default function CampaignsPage() {
     setError("");
     setForm({
       ...emptyForm,
-      responsible_user: users.length === 1 ? users[0].id : "",
+      responsible_user: managers.length === 1 ? managers[0].id : "",
       executor: "",
     });
     setIsModalOpen(true);
@@ -106,16 +103,20 @@ export default function CampaignsPage() {
       setError("Дата начала не может быть позже даты окончания.");
       return;
     }
-    if (editingCampaign) {
-      await api.patch(`/campaigns/${editingCampaign.id}/`, { ...form, executor: form.executor || null });
-    } else {
-      const { status, ...createForm } = form;
-      await api.post("/campaigns/", { ...createForm, executor: form.executor || null });
+    try {
+      if (editingCampaign) {
+        await api.patch(`/campaigns/${editingCampaign.id}/`, { ...form, executor: form.executor || null });
+      } else {
+        const { status, ...createForm } = form;
+        await api.post("/campaigns/", { ...createForm, executor: form.executor || null });
+      }
+      setForm(emptyForm);
+      setEditingCampaign(null);
+      setIsModalOpen(false);
+      load();
+    } catch (err) {
+      setError(formatApiError(err, "Кампанию не удалось сохранить."));
     }
-    setForm(emptyForm);
-    setEditingCampaign(null);
-    setIsModalOpen(false);
-    load();
   }
 
   async function deleteCampaign(campaign) {
@@ -198,7 +199,7 @@ export default function CampaignsPage() {
                 Ответственный менеджер
                 <select required disabled={editingCampaign?.status_locks_fields} value={form.responsible_user} onChange={(e) => setForm({ ...form, responsible_user: e.target.value })}>
                   <option value="">Выберите пользователя</option>
-                  {users.map((item) => <option key={item.id} value={item.id}>{item.full_name}</option>)}
+                  {managers.map((item) => <option key={item.id} value={item.id}>{item.full_name}</option>)}
                 </select>
               </label>
               <label>
