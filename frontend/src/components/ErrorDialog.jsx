@@ -10,7 +10,7 @@ export default function ErrorDialog({ message, onClose }) {
         </div>
         <p>{message}</p>
         <div className="modal-actions">
-          <button type="button" className="primary-button" onClick={onClose}>Понятно</button>
+          <button type="button" className="primary-button" onClick={onClose}>Окей</button>
         </div>
       </div>
     </div>
