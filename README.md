@@ -35,15 +35,15 @@
 
 ## Локальный запуск backend
 
-Команды приведены для PowerShell из корня репозитория.
+Команды приведены для Linux терминала из корня репозитория.
 
-    python -m venv .venv
-    .\.venv\Scripts\Activate.ps1
-    pip install -r backend\requirements.txt
-    Copy-Item backend\.env.example backend\.env
-    python backend\manage.py migrate
-    python backend\manage.py seed
-    python backend\manage.py runserver
+    python3.12 -m venv .venv
+    source .venv/bin/activate
+    pip install -r backend/requirements.txt
+    cp backend/.env.example backend/.env
+    python backend/manage.py migrate
+    python backend/manage.py seed
+    python backend/manage.py runserver
 
 Команда `seed` создаёт учебные справочники и пользователей. Её следует выполнять только для локальной демонстрационной базы. Данные для входа, созданные командой, выводятся в терминал.
 
