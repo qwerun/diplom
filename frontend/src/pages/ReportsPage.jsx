@@ -3,20 +3,23 @@ import { useEffect, useState } from "react";
 import api from "../api/client";
 import { formatApiError } from "../utils/apiErrors";
 import DataTable from "../components/DataTable";
-import { asList } from "../utils/apiData";
+import { asList, pageState, tablePagination } from "../utils/apiData";
 
 export default function ReportsPage() {
-  const [reports, setReports] = useState([]);
+  const [reportsPage, setReportsPage] = useState(pageState([]));
+  const [reportsPageNumber, setReportsPageNumber] = useState(1);
   const [campaigns, setCampaigns] = useState([]);
   const [selectedCampaigns, setSelectedCampaigns] = useState([]);
   const [error, setError] = useState("");
 
-  function load() {
-    api.get("/reports/").then((res) => setReports(asList(res.data)));
-    api.get("/campaigns/").then((res) => setCampaigns(asList(res.data)));
+  function load(targetPage = reportsPageNumber) {
+    api.get("/reports/", { params: { page: targetPage } })
+      .then((res) => setReportsPage(pageState(res.data, targetPage)));
+    api.get("/campaigns/", { params: { page_size: 100 } })
+      .then((res) => setCampaigns(asList(res.data)));
   }
 
-  useEffect(load, []);
+  useEffect(() => load(reportsPageNumber), [reportsPageNumber]);
 
   function toggleCampaign(id) {
     const value = String(id);
@@ -44,7 +47,7 @@ export default function ReportsPage() {
     try {
       await api.post("/reports/generate/", { campaigns: selectedCampaigns });
       setSelectedCampaigns([]);
-      load();
+      load(reportsPageNumber);
     } catch (requestError) {
       setError(formatApiError(requestError, "Не удалось сформировать отчет."));
     }
@@ -113,7 +116,7 @@ export default function ReportsPage() {
       </section>
 
       <section className="panel">
-        <DataTable rows={reports} columns={[
+        <DataTable rows={reportsPage.rows} manualPagination={tablePagination(reportsPage, setReportsPageNumber)} columns={[
           { key: "campaign_names", title: "Кампании", sortValue: (row) => row.campaign_names?.join(", ") || row.campaign_name || "", render: (row) => row.campaign_names?.join(", ") || row.campaign_name || "—" },
           { key: "generated_by_name", title: "Сформировал" },
           { key: "create_date", title: "Дата" },

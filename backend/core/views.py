@@ -59,6 +59,8 @@ from .permissions import user_role
 
 class StandardResultsSetPagination(pagination.PageNumberPagination):
     page_size = 10
+    page_size_query_param = "page_size"
+    max_page_size = 100
 
 class ProtectedDeleteMixin:
     protected_delete_message = "Запись нельзя удалить, потому что она используется в других данных системы."
@@ -96,6 +98,7 @@ class MeView(APIView):
 
 
 class UserViewSet(ProtectedDeleteMixin, viewsets.ModelViewSet):
+    pagination_class = StandardResultsSetPagination
     queryset = User.objects.select_related("profile").all().order_by("username")
     serializer_class = UserSerializer
     permission_classes = [IsAdmin]
@@ -122,6 +125,7 @@ class UserViewSet(ProtectedDeleteMixin, viewsets.ModelViewSet):
 
 
 class StatusViewSet(ProtectedDeleteMixin, viewsets.ModelViewSet):
+    pagination_class = StandardResultsSetPagination
     queryset = Status.objects.all()
     serializer_class = StatusSerializer
     permission_classes = [IsAdminOrReadOnly]
@@ -136,6 +140,7 @@ class StatusViewSet(ProtectedDeleteMixin, viewsets.ModelViewSet):
 
 
 class StatusTransitionViewSet(viewsets.ModelViewSet):
+    pagination_class = StandardResultsSetPagination
     queryset = StatusTransition.objects.select_related("from_status", "to_status")
     serializer_class = StatusTransitionSerializer
     permission_classes = [IsAdminOrReadOnly]
@@ -149,6 +154,7 @@ class StatusTransitionViewSet(viewsets.ModelViewSet):
 
 
 class ChannelViewSet(ProtectedDeleteMixin, viewsets.ModelViewSet):
+    pagination_class = StandardResultsSetPagination
     queryset = Channel.objects.all()
     serializer_class = ChannelSerializer
     permission_classes = [IsAdminOrReadOnly]
@@ -160,6 +166,7 @@ class ChannelViewSet(ProtectedDeleteMixin, viewsets.ModelViewSet):
 
 
 class MetricSourceViewSet(ProtectedDeleteMixin, viewsets.ModelViewSet):
+    pagination_class = StandardResultsSetPagination
     queryset = MetricSource.objects.all()
     serializer_class = MetricSourceSerializer
     permission_classes = [IsAdminOrReadOnly]
@@ -195,6 +202,7 @@ class CampaignViewSet(viewsets.ModelViewSet):
 
 
 class ActivityViewSet(viewsets.ModelViewSet):
+    pagination_class = StandardResultsSetPagination
     queryset = Activity.objects.select_related(
         "campaign", "channel", "metric_source", "status"
     )
@@ -271,6 +279,7 @@ class ActivityViewSet(viewsets.ModelViewSet):
 
 
 class ActivityResultViewSet(viewsets.ModelViewSet):
+    pagination_class = StandardResultsSetPagination
     queryset = ActivityResult.objects.select_related("activity", "activity__campaign")
     serializer_class = ActivityResultSerializer
     permission_classes = [CanEditActivityResult]
@@ -284,6 +293,7 @@ class ActivityResultViewSet(viewsets.ModelViewSet):
 
 
 class ActivityMediaViewSet(viewsets.ModelViewSet):
+    pagination_class = StandardResultsSetPagination
     queryset = ActivityMedia.objects.select_related("activity", "activity__campaign")
     serializer_class = ActivityMediaSerializer
     permission_classes = [CanManageActivityMedia]
@@ -323,6 +333,7 @@ class ActivityMediaViewSet(viewsets.ModelViewSet):
 
 
 class MetricTypeViewSet(ProtectedDeleteMixin, viewsets.ModelViewSet):
+    pagination_class = StandardResultsSetPagination
     queryset = MetricType.objects.all()
     serializer_class = MetricTypeSerializer
     permission_classes = [IsAdminOrReadOnly]
@@ -333,6 +344,7 @@ class MetricTypeViewSet(ProtectedDeleteMixin, viewsets.ModelViewSet):
 
 
 class MetricValueViewSet(viewsets.ModelViewSet):
+    pagination_class = StandardResultsSetPagination
     queryset = MetricValue.objects.select_related("activity", "activity__campaign", "metric_type")
     serializer_class = MetricValueSerializer
     permission_classes = [CanEditMetrics]
@@ -346,6 +358,7 @@ class MetricValueViewSet(viewsets.ModelViewSet):
 
 
 class ReportViewSet(viewsets.ModelViewSet):
+    pagination_class = StandardResultsSetPagination
     queryset = Report.objects.select_related("campaign", "generated_by").prefetch_related("campaigns")
     serializer_class = ReportSerializer
     permission_classes = [CanUseReports]

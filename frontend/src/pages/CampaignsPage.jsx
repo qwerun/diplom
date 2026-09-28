@@ -68,7 +68,7 @@ export default function CampaignsPage() {
     api.get("/me/", { silentError: true }).then((res) => setCurrentUser(res.data)).catch(() => setCurrentUser(null));
     api.get("/users/managers/", { silentError: true }).then((res) => setManagers(asList(res.data))).catch(() => setManagers([]));
     api.get("/users/executors/", { silentError: true }).then((res) => setExecutors(asList(res.data))).catch(() => setExecutors([]));
-    api.get("/statuses/?entity_type=campaign", { silentError: true }).then((res) => setStatuses(asList(res.data))).catch(() => setStatuses([]));
+    api.get("/statuses/", { params: { entity_type: "campaign", page_size: 100 }, silentError: true }).then((res) => setStatuses(asList(res.data))).catch(() => setStatuses([]));
   }
 
   useEffect(load, [page, search, selectedStatus, sortKey, sortDirection]);

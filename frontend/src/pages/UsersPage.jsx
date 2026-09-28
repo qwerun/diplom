@@ -3,7 +3,7 @@ import { useEffect, useState } from "react";
 import api from "../api/client";
 import DataTable from "../components/DataTable";
 import ErrorDialog from "../components/ErrorDialog";
-import { asList } from "../utils/apiData";
+import { pageState, tablePagination } from "../utils/apiData";
 import { ROLE_LABELS } from "../utils/roles";
 import { formatApiError } from "../utils/apiErrors";
 
@@ -18,17 +18,19 @@ const emptyForm = {
 };
 
 export default function UsersPage() {
-  const [users, setUsers] = useState([]);
+  const [usersPage, setUsersPage] = useState(pageState([]));
+  const [page, setPage] = useState(1);
   const [modalOpen, setModalOpen] = useState(false);
   const [editingUser, setEditingUser] = useState(null);
   const [form, setForm] = useState(emptyForm);
   const [error, setError] = useState("");
 
-  function load() {
-    api.get("/users/").then((res) => setUsers(asList(res.data)));
+  function load(targetPage = page) {
+    api.get("/users/", { params: { page: targetPage } })
+      .then((res) => setUsersPage(pageState(res.data, targetPage)));
   }
 
-  useEffect(load, []);
+  useEffect(() => load(page), [page]);
 
   function openCreate() {
     setError("");
@@ -67,7 +69,7 @@ export default function UsersPage() {
       setModalOpen(false);
       setEditingUser(null);
       setForm(emptyForm);
-      load();
+      load(page);
     } catch (requestError) {
       setError(formatApiError(requestError, "Не удалось сохранить пользователя."));
     }
@@ -78,7 +80,7 @@ export default function UsersPage() {
     setError("");
     try {
       await api.delete(`/users/${user.id}/`);
-      load();
+      load(page);
     } catch (requestError) {
       setError(formatApiError(requestError, "Не удалось удалить пользователя."));
     }
@@ -91,7 +93,7 @@ export default function UsersPage() {
         <button className="primary-button" onClick={openCreate}>Создать пользователя</button>
       </div>
       <ErrorDialog message={error} onClose={() => setError("")} />
-      <DataTable rows={users} columns={[
+      <DataTable rows={usersPage.rows} manualPagination={tablePagination(usersPage, setPage)} columns={[
         { key: "username", title: "Логин" },
         { key: "full_name", title: "ФИО" },
         { key: "email", title: "Email" },

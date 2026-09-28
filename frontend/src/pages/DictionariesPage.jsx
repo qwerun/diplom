@@ -3,7 +3,7 @@ import { useEffect, useMemo, useState } from "react";
 import api from "../api/client";
 import DataTable from "../components/DataTable";
 import ErrorDialog from "../components/ErrorDialog";
-import { asList } from "../utils/apiData";
+import { asList, pageState, tablePagination } from "../utils/apiData";
 import { formatApiError } from "../utils/apiErrors";
 
 const sections = [
@@ -25,10 +25,12 @@ export default function DictionariesPage() {
   const [transitionEntity, setTransitionEntity] = useState("campaign");
   const [modalOpen, setModalOpen] = useState(false);
   const [editingItem, setEditingItem] = useState(null);
-  const [channels, setChannels] = useState([]);
-  const [sources, setSources] = useState([]);
-  const [types, setTypes] = useState([]);
-  const [statuses, setStatuses] = useState([]);
+  const [channels, setChannels] = useState(pageState([]));
+  const [sources, setSources] = useState(pageState([]));
+  const [types, setTypes] = useState(pageState([]));
+  const [statuses, setStatuses] = useState(pageState([]));
+  const [pages, setPages] = useState({ channels: 1, sources: 1, types: 1, statuses: 1 });
+  const [allStatuses, setAllStatuses] = useState([]);
   const [transitions, setTransitions] = useState([]);
   const [transitionDraft, setTransitionDraft] = useState([]);
   const [error, setError] = useState("");
@@ -38,17 +40,25 @@ export default function DictionariesPage() {
   const [typeForm, setTypeForm] = useState({ name: "", unit: "" });
   const [statusForm, setStatusForm] = useState({ name: "", entity_type: "campaign", code: "", is_initial: false, is_terminal: false, locks_fields: false });
 
-  function load() {
-    api.get("/channels/").then((res) => setChannels(asList(res.data)));
-    api.get("/metric-sources/").then((res) => setSources(asList(res.data)));
-    api.get("/metric-types/").then((res) => setTypes(asList(res.data)));
-    api.get("/statuses/").then((res) => setStatuses(asList(res.data)));
-    api.get("/status-transitions/").then((res) => setTransitions(asList(res.data)));
+  function setSectionPage(section, updater) {
+    setPages((current) => ({
+      ...current,
+      [section]: typeof updater === "function" ? updater(current[section]) : updater,
+    }));
   }
 
-  useEffect(load, []);
+  function load() {
+    api.get("/channels/", { params: { page: pages.channels } }).then((res) => setChannels(pageState(res.data, pages.channels)));
+    api.get("/metric-sources/", { params: { page: pages.sources } }).then((res) => setSources(pageState(res.data, pages.sources)));
+    api.get("/metric-types/", { params: { page: pages.types } }).then((res) => setTypes(pageState(res.data, pages.types)));
+    api.get("/statuses/", { params: { page: pages.statuses } }).then((res) => setStatuses(pageState(res.data, pages.statuses)));
+    api.get("/statuses/", { params: { page_size: 100 } }).then((res) => setAllStatuses(asList(res.data)));
+    api.get("/status-transitions/", { params: { page_size: 100 } }).then((res) => setTransitions(asList(res.data)));
+  }
 
-  const matrixStatuses = statuses.filter((status) => status.entity_type === transitionEntity);
+  useEffect(load, [pages]);
+
+  const matrixStatuses = allStatuses.filter((status) => status.entity_type === transitionEntity);
   const matrixTransitions = transitions.filter((transition) => transition.entity_type === transitionEntity);
 
   useEffect(() => {
@@ -59,7 +69,9 @@ export default function DictionariesPage() {
     if (activeSection === "channels") {
       return {
         title: "Каналы",
-        rows: channels,
+        rows: channels.rows,
+        pageData: channels,
+        pageKey: "channels",
         columns: [
           { key: "name", title: "Название" },
           { key: "url", title: "Ссылка" },
@@ -70,7 +82,9 @@ export default function DictionariesPage() {
     if (activeSection === "sources") {
       return {
         title: "Источники метрик",
-        rows: sources,
+        rows: sources.rows,
+        pageData: sources,
+        pageKey: "sources",
         columns: [
           { key: "name", title: "Название" },
           { key: "type", title: "Тип" },
@@ -82,7 +96,9 @@ export default function DictionariesPage() {
     if (activeSection === "types") {
       return {
         title: "Типы метрик",
-        rows: types,
+        rows: types.rows,
+        pageData: types,
+        pageKey: "types",
         columns: [
           { key: "name", title: "Название" },
           { key: "unit", title: "Ед. изм." },
@@ -92,7 +108,9 @@ export default function DictionariesPage() {
     }
     return {
       title: "Статусы",
-      rows: statuses,
+      rows: statuses.rows,
+      pageData: statuses,
+      pageKey: "statuses",
       columns: [
         { key: "name", title: "Название" },
         { key: "code", title: "Системный код" },
@@ -255,7 +273,7 @@ export default function DictionariesPage() {
             <span className="section-label">Справочник</span>
             <h2>{activeSection === "statuses" && statusTab === "matrix" ? "Переходы статусов" : current.title}</h2>
           </div>
-          {!(activeSection === "statuses" && statusTab === "matrix") && <strong>{current.rows.length} шт.</strong>}
+          {!(activeSection === "statuses" && statusTab === "matrix") && <strong>{current.pageData.count} шт.</strong>}
         </div>
 
         {activeSection === "statuses" && statusTab === "matrix" ? (
@@ -313,7 +331,11 @@ export default function DictionariesPage() {
             </div>
           </div>
         ) : (
-          <DataTable rows={current.rows} columns={current.columns} />
+          <DataTable
+            rows={current.rows}
+            columns={current.columns}
+            manualPagination={tablePagination(current.pageData, (updater) => setSectionPage(current.pageKey, updater))}
+          />
         )}
       </section>
 

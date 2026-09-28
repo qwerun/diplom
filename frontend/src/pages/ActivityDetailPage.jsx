@@ -34,16 +34,16 @@ export default function ActivityDetailPage() {
 
   function load() {
     api.get(`/activities/${id}/`).then((res) => setActivity(res.data));
-    api.get(`/activity-results/?activity=${id}`).then((res) => {
+    api.get("/activity-results/", { params: { activity: id, page_size: 100 } }).then((res) => {
       const item = asList(res.data)[0] || null;
       setResult(item);
       setResultForm({ result_url: item?.result_url || "", comment: item?.comment || "" });
     });
-    api.get(`/metric-values/?activity=${id}`).then((res) => setMetrics(asList(res.data)));
-    api.get("/metric-types/").then((res) => setMetricTypes(asList(res.data)));
-    api.get("/statuses/?entity_type=activity").then((res) => setStatuses(asList(res.data)));
-    api.get("/status-transitions/?entity_type=activity").then((res) => setStatusTransitions(asList(res.data)));
-    api.get(`/activity-media/?activity=${id}`).then((res) => setMediaFiles(asList(res.data)));
+    api.get("/metric-values/", { params: { activity: id, page_size: 100 } }).then((res) => setMetrics(asList(res.data)));
+    api.get("/metric-types/", { params: { page_size: 100 } }).then((res) => setMetricTypes(asList(res.data)));
+    api.get("/statuses/", { params: { entity_type: "activity", page_size: 100 } }).then((res) => setStatuses(asList(res.data)));
+    api.get("/status-transitions/", { params: { entity_type: "activity", page_size: 100 } }).then((res) => setStatusTransitions(asList(res.data)));
+    api.get("/activity-media/", { params: { activity: id, page_size: 100 } }).then((res) => setMediaFiles(asList(res.data)));
     api.get("/me/", { silentError: true }).then((res) => setCurrentUser(res.data)).catch(() => setCurrentUser(null));
   }
 

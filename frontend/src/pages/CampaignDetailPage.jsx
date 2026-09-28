@@ -2,7 +2,7 @@ import { useEffect, useState } from "react";
 import { Link, useNavigate, useParams } from "react-router-dom";
 
 import api from "../api/client";
-import { asList } from "../utils/apiData";
+import { asList, pageState } from "../utils/apiData";
 import { CAN_CHANGE_STATUS, CAN_MANAGE_CAMPAIGNS } from "../utils/roles";
 import { getStatusOptions } from "../utils/statusTransitions";
 
@@ -18,7 +18,8 @@ export default function CampaignDetailPage() {
   const { id } = useParams();
   const navigate = useNavigate();
   const [campaign, setCampaign] = useState(null);
-  const [activities, setActivities] = useState([]);
+  const [activitiesPage, setActivitiesPage] = useState(pageState([]));
+  const [activitiesPageNumber, setActivitiesPageNumber] = useState(1);
   const [channels, setChannels] = useState([]);
   const [sources, setSources] = useState([]);
   const [statuses, setStatuses] = useState([]);
@@ -36,20 +37,21 @@ export default function CampaignDetailPage() {
   const [formError, setFormError] = useState("");
   const [executors, setExecutors] = useState([]);
 
-  function load() {
+  function load(targetActivitiesPage = activitiesPageNumber) {
     api.get(`/campaigns/${id}/`).then((res) => setCampaign(res.data));
-    api.get(`/activities/?campaign=${id}`).then((res) => setActivities(asList(res.data)));
-    api.get("/channels/").then((res) => setChannels(asList(res.data)));
-    api.get("/metric-sources/").then((res) => setSources(asList(res.data)));
-    api.get("/statuses/?entity_type=activity").then((res) => setStatuses(asList(res.data)));
-    api.get("/statuses/?entity_type=campaign").then((res) => setCampaignStatuses(asList(res.data)));
-    api.get("/status-transitions/?entity_type=activity").then((res) => setActivityTransitions(asList(res.data)));
-    api.get("/status-transitions/?entity_type=campaign").then((res) => setCampaignTransitions(asList(res.data)));
+    api.get("/activities/", { params: { campaign: id, page: targetActivitiesPage } })
+      .then((res) => setActivitiesPage(pageState(res.data, targetActivitiesPage)));
+    api.get("/channels/", { params: { page_size: 100 } }).then((res) => setChannels(asList(res.data)));
+    api.get("/metric-sources/", { params: { page_size: 100 } }).then((res) => setSources(asList(res.data)));
+    api.get("/statuses/", { params: { entity_type: "activity", page_size: 100 } }).then((res) => setStatuses(asList(res.data)));
+    api.get("/statuses/", { params: { entity_type: "campaign", page_size: 100 } }).then((res) => setCampaignStatuses(asList(res.data)));
+    api.get("/status-transitions/", { params: { entity_type: "activity", page_size: 100 } }).then((res) => setActivityTransitions(asList(res.data)));
+    api.get("/status-transitions/", { params: { entity_type: "campaign", page_size: 100 } }).then((res) => setCampaignTransitions(asList(res.data)));
     api.get("/me/", { silentError: true }).then((res) => setCurrentUser(res.data)).catch(() => setCurrentUser(null));
     api.get("/users/executors/", { silentError: true }).then((res) => setExecutors(asList(res.data))).catch(() => setExecutors([]));
   }
 
-  useEffect(load, [id]);
+  useEffect(() => load(activitiesPageNumber), [id, activitiesPageNumber]);
 
   function openCreate() {
     setEditingActivity(null);
@@ -98,19 +100,19 @@ export default function CampaignDetailPage() {
     }
     await api.patch(`/campaigns/${id}/`, { ...campaignForm, executor: campaignForm.executor || null });
     setCampaignModalOpen(false);
-    load();
+    load(activitiesPageNumber);
   }
 
   async function changeCampaignStatus(status) {
     await api.patch(`/campaigns/${id}/`, { status: status.id });
     setSelectedCampaignStatus("");
-    load();
+    load(activitiesPageNumber);
   }
 
   async function changeActivityStatus(activity, status) {
     await api.patch(`/activities/${activity.id}/`, { status: status.id });
     setSelectedActivityStatuses((values) => ({ ...values, [activity.id]: "" }));
-    load();
+    load(activitiesPageNumber);
   }
 
   async function submit(event) {
@@ -129,13 +131,13 @@ export default function CampaignDetailPage() {
     setModalOpen(false);
     setEditingActivity(null);
     setActivityForm(emptyActivityForm);
-    load();
+    load(activitiesPageNumber);
   }
 
   async function deleteActivity(activity) {
     if (!confirm(`Удалить активность "${activity.name}"?`)) return;
     await api.delete(`/activities/${activity.id}/`);
-    load();
+    load(activitiesPageNumber);
   }
 
   function isCampaignClosed() {
@@ -210,10 +212,10 @@ export default function CampaignDetailPage() {
           {canManageCampaigns && <button className="primary-button" disabled={isCampaignClosed()} onClick={openCreate}>Добавить активность</button>}
         </div>
 
-        {activities.length === 0 && <div className="empty-state">У этой кампании пока нет активностей.</div>}
+        {activitiesPage.rows.length === 0 && <div className="empty-state">У этой кампании пока нет активностей.</div>}
 
         <div className="activity-list">
-          {activities.map((activity) => (
+          {activitiesPage.rows.map((activity) => (
             <article className="activity-row" key={activity.id}>
               <div className="activity-row-main" onClick={() => navigate(`/activities/${activity.id}`)}>
                 <h3>{activity.name}</h3>
@@ -256,6 +258,16 @@ export default function CampaignDetailPage() {
             </article>
           ))}
         </div>
+        {activitiesPage.count > 10 && (
+          <div className="pagination-bar">
+            <span className="pagination-count">{activitiesPage.from}–{activitiesPage.to} из {activitiesPage.count}</span>
+            <div className="pagination-controls">
+              <button type="button" className="pagination-button" disabled={!activitiesPage.hasPreviousPage} onClick={() => setActivitiesPageNumber((value) => Math.max(1, value - 1))} aria-label="Предыдущая страница">‹</button>
+              <span className="pagination-page">{activitiesPage.page}</span>
+              <button type="button" className="pagination-button" disabled={!activitiesPage.hasNextPage} onClick={() => setActivitiesPageNumber((value) => value + 1)} aria-label="Следующая страница">›</button>
+            </div>
+          </div>
+        )}
       </section>
 
       {modalOpen && (
