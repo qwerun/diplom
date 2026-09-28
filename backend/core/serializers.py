@@ -279,6 +279,10 @@ class ActivitySerializer(serializers.ModelSerializer):
             raise serializers.ValidationError("В завершенную или отмененную кампанию нельзя добавлять и менять активности.")
         if new_status and new_status.entity_type != Status.ENTITY_ACTIVITY:
             raise serializers.ValidationError("Для активности выбран неподходящий тип статуса.")
+        if not self.instance and new_status and new_status.is_terminal:
+            raise serializers.ValidationError({
+                "status": "Активность нельзя создать сразу в конечном статусе."
+            })
         if self.instance and new_status and new_status != self.instance.status:
             exists = StatusTransition.objects.filter(
                 from_status=self.instance.status,
