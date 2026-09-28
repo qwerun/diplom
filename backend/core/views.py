@@ -159,11 +159,15 @@ class ChannelViewSet(ProtectedDeleteMixin, viewsets.ModelViewSet):
     ]
 
 
-class MetricSourceViewSet(viewsets.ModelViewSet):
+class MetricSourceViewSet(ProtectedDeleteMixin, viewsets.ModelViewSet):
     queryset = MetricSource.objects.all()
     serializer_class = MetricSourceSerializer
     permission_classes = [IsAdminOrReadOnly]
     filterset_fields = ["type", "is_active"]
+    protected_delete_message = "Источник метрик нельзя удалить, потому что он используется в активностях."
+    protected_related_checks = [
+        ("activities", "Источник метрик нельзя удалить, потому что он используется в активностях."),
+    ]
 
 
 class CampaignViewSet(viewsets.ModelViewSet):
