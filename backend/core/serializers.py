@@ -212,8 +212,12 @@ class CampaignSerializer(serializers.ModelSerializer):
             raise serializers.ValidationError("Бюджет не может быть отрицательным.")
         if start_date and end_date and end_date < start_date:
             raise serializers.ValidationError("Дата окончания не может быть раньше даты начала.")
-        if self.instance and self.instance.status.is_terminal and attrs:
-            raise serializers.ValidationError("Завершенную или отмененную кампанию нельзя редактировать.")
+        if self.instance and self.instance.status.is_terminal:
+            edited_fields = set(attrs.keys()) - {"status"}
+            if edited_fields:
+                raise serializers.ValidationError(
+                    "Завершенную или отмененную кампанию нельзя редактировать, кроме смены статуса по переходам."
+                )
         if new_status and new_status.entity_type != Status.ENTITY_CAMPAIGN:
             raise serializers.ValidationError("Для кампании выбран неподходящий тип статуса.")
         if not self.instance and new_status and new_status.is_terminal:
