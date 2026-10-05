@@ -1996,3 +1996,26 @@ h1 {
     overflow-x: hidden;
   }
 }
+
+@media (max-width: 640px) {
+  .campaigns-list-panel .table-wrap {
+    overflow-x: visible;
+  }
+
+  .campaigns-list-panel table {
+    width: 100%;
+    table-layout: auto;
+  }
+
+  .campaigns-list-panel th,
+  .campaigns-list-panel td,
+  .campaigns-list-panel th:nth-child(n),
+  .campaigns-list-panel td:nth-child(n) {
+    width: auto;
+  }
+
+  .campaigns-list-panel td {
+    grid-template-columns: minmax(92px, 34%) minmax(0, 1fr);
+    padding: 11px 13px;
+  }
+}
