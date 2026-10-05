@@ -1,12 +1,12 @@
+from django.conf import settings
 from django.contrib.auth.models import User
 from django.db.models import Count, Q, Sum
 from django.db.models.deletion import ProtectedError
 import mimetypes
 from pathlib import Path
 
-from django.http import FileResponse, Http404, HttpResponse
+from django.http import FileResponse, Http404
 from decimal import Decimal
-from io import BytesIO
 from openpyxl import Workbook
 from openpyxl.styles import Alignment, Font, PatternFill
 from rest_framework import decorators, pagination, permissions, response, status, viewsets
@@ -448,6 +448,7 @@ class ReportViewSet(viewsets.ModelViewSet):
         )
         report.campaigns.set(campaigns)
         report.file_path = f"/api/reports/{report.id}/xlsx/"
+        self.save_report_file(report, campaigns)
         report.save(update_fields=["file_path"])
         return response.Response(
             ReportSerializer(report, context={"request": request}).data,
@@ -467,16 +468,10 @@ class ReportViewSet(viewsets.ModelViewSet):
             campaigns = [report.campaign]
         return campaigns
 
-    @decorators.action(detail=True, methods=["get"])
-    def xlsx(self, request, pk=None):
-        report = self.get_object()
-        campaigns = self.report_campaigns(report)
-        if not campaigns:
-            return response.Response(
-                {"detail": "В отчете нет доступных кампаний."},
-                status=status.HTTP_400_BAD_REQUEST,
-            )
+    def report_file_path(self, report):
+        return Path(settings.MEDIA_ROOT) / "reports" / f"campaign_report_{report.id}.xlsx"
 
+    def build_report_workbook(self, report, campaigns):
         workbook = Workbook()
         sheet = workbook.active
         sheet.title = "Сводный отчет" if len(campaigns) > 1 else "Отчет"
@@ -484,7 +479,6 @@ class ReportViewSet(viewsets.ModelViewSet):
         title_fill = PatternFill("solid", fgColor="F2A900")
         header_fill = PatternFill("solid", fgColor="263238")
         header_font = Font(color="FFFFFF", bold=True)
-        bold_font = Font(bold=True)
 
         sheet["A1"] = (
             f"Сводный отчет по кампаниям: {len(campaigns)}"
@@ -582,18 +576,41 @@ class ReportViewSet(viewsets.ModelViewSet):
         for sheet_row in sheet.iter_rows():
             for cell in sheet_row:
                 cell.alignment = Alignment(vertical="top", wrap_text=True)
+        return workbook
 
-        output = BytesIO()
-        workbook.save(output)
-        output.seek(0)
+    def save_report_file(self, report, campaigns):
+        file_path = self.report_file_path(report)
+        file_path.parent.mkdir(parents=True, exist_ok=True)
+        workbook = self.build_report_workbook(report, campaigns)
+        workbook.save(file_path)
+
+    @decorators.action(detail=True, methods=["get"])
+    def xlsx(self, request, pk=None):
+        report = self.get_object()
+        file_path = self.report_file_path(report)
         filename = f"campaign_report_{report.id}.xlsx"
-        response_file = HttpResponse(
-            output.read(),
-            content_type="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
-        )
-        response_file["Content-Disposition"] = f'attachment; filename="{filename}"'
-        return response_file
+        content_type = "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"
+        if file_path.exists():
+            return FileResponse(
+                file_path.open("rb"),
+                as_attachment=True,
+                filename=filename,
+                content_type=content_type,
+            )
 
+        campaigns = self.report_campaigns(report)
+        if not campaigns:
+            return response.Response(
+                {"detail": "Файл отчета не найден, а связанные кампании уже недоступны."},
+                status=status.HTTP_404_NOT_FOUND,
+            )
+        self.save_report_file(report, campaigns)
+        return FileResponse(
+            file_path.open("rb"),
+            as_attachment=True,
+            filename=filename,
+            content_type=content_type,
+        )
 
 class AnalyticsViewSet(viewsets.ViewSet):
     permission_classes = [permissions.IsAuthenticated]
@@ -682,4 +699,5 @@ class PasswordChangeView(APIView):
         request.user.set_password(serializer.validated_data["new_password"])
         request.user.save(update_fields=["password"])
         return response.Response({"detail": "Пароль изменён."})
+
 
