@@ -38,6 +38,27 @@ def validate_executor_activity_access(request, activity, message):
             raise serializers.ValidationError({"activity": message})
 
 
+def normalize_name(value):
+    return (value or "").strip().lower().replace("ё", "е")
+
+
+def channel_matches_metric_source(channel, metric_source):
+    if not channel or not metric_source or metric_source.type != MetricSource.TYPE_API:
+        return True
+
+    channel_name = normalize_name(channel.name)
+    source_name = normalize_name(metric_source.name)
+    aliases = {
+        "vk": ["vk", "вк", "вконтакте", "vkontakte"],
+        "telegram": ["telegram", "телеграм", "t.me"],
+    }
+
+    for values in aliases.values():
+        if any(value in source_name for value in values):
+            return any(value in channel_name for value in values)
+    return True
+
+
 class UserProfileSerializer(serializers.ModelSerializer):
     role_display = serializers.CharField(source="get_role_display", read_only=True)
 
@@ -269,18 +290,21 @@ class ActivitySerializer(serializers.ModelSerializer):
         model = Activity
         fields = "__all__"
         extra_kwargs = {
-            # Как и у кампании, стартовый статус активности задается сервером.
             "status": {"required": False},
         }
 
     def validate(self, attrs):
         campaign = attrs.get("campaign", getattr(self.instance, "campaign", None))
-        channel = attrs.get("channel")
-        metric_source = attrs.get("metric_source")
+        channel = attrs.get("channel", getattr(self.instance, "channel", None))
+        metric_source = attrs.get("metric_source", getattr(self.instance, "metric_source", None))
         new_status = attrs.get("status")
 
         if campaign and campaign.status.is_terminal:
             raise serializers.ValidationError("В завершенную или отмененную кампанию нельзя добавлять и менять активности.")
+        if not channel_matches_metric_source(channel, metric_source):
+            raise serializers.ValidationError({
+                "metric_source": "Источник метрик не соответствует выбранному каналу."
+            })
         if new_status and new_status.entity_type != Status.ENTITY_ACTIVITY:
             raise serializers.ValidationError("Для активности выбран неподходящий тип статуса.")
         if not self.instance and new_status and new_status.is_terminal:
@@ -493,3 +517,4 @@ class PasswordChangeSerializer(serializers.Serializer):
         except DjangoValidationError as exc:
             raise serializers.ValidationError({"new_password": list(exc.messages)}) from exc
         return attrs
+

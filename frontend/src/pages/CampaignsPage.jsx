@@ -136,12 +136,21 @@ export default function CampaignsPage() {
   }
 
   async function deleteCampaign(campaign) {
+    if (isClosed(campaign)) {
+      setError("Завершенную или отмененную кампанию нельзя удалить.");
+      return;
+    }
     if (!confirm(`Удалить кампанию "${campaign.name}"?`)) return;
-    await api.delete(`/campaigns/${campaign.id}/`);
-    if (page !== 1) {
-      setPage(1);
-    } else {
-      load();
+    setError("");
+    try {
+      await api.delete(`/campaigns/${campaign.id}/`);
+      if (page !== 1) {
+        setPage(1);
+      } else {
+        load();
+      }
+    } catch (err) {
+      setError(formatApiError(err, "Кампанию не удалось удалить."));
     }
   }
 
@@ -206,7 +215,14 @@ export default function CampaignsPage() {
             ...(canManageCampaigns ? [{ key: "actions", title: "Действия", disableSort: true, render: (row) => (
               <div className="table-actions">
                 <button className="plain-button small" disabled={isClosed(row)} onClick={() => openEdit(row)}>Изменить</button>
-                <button className="danger-button small" onClick={() => deleteCampaign(row)}>Удалить</button>
+                <button
+                  className="danger-button small"
+                  disabled={isClosed(row)}
+                  title={isClosed(row) ? "Завершенную или отмененную кампанию нельзя удалить" : ""}
+                  onClick={() => deleteCampaign(row)}
+                >
+                  Удалить
+                </button>
               </div>
             ) }] : []),
           ]}

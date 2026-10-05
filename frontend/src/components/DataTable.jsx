@@ -119,7 +119,7 @@ export default function DataTable({
             {visibleRows.map((row) => (
               <tr key={row.id}>
                 {columns.map((column) => (
-                  <td key={column.key}>{column.render ? column.render(row) : row[column.key]}</td>
+                  <td key={column.key} data-label={column.title}>{column.render ? column.render(row) : row[column.key]}</td>
                 ))}
               </tr>
             ))}
@@ -139,3 +139,4 @@ export default function DataTable({
     </>
   );
 }
+

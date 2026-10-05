@@ -10,6 +10,7 @@ from io import BytesIO
 from openpyxl import Workbook
 from openpyxl.styles import Alignment, Font, PatternFill
 from rest_framework import decorators, pagination, permissions, response, status, viewsets
+from rest_framework.exceptions import ValidationError
 from rest_framework.parsers import FormParser, MultiPartParser
 from rest_framework.views import APIView
 
@@ -113,6 +114,15 @@ class UserViewSet(ProtectedDeleteMixin, viewsets.ModelViewSet):
             return [permissions.IsAuthenticated()]
         return super().get_permissions()
 
+    def destroy(self, request, *args, **kwargs):
+        user = self.get_object()
+        if user.id == request.user.id:
+            return response.Response(
+                {"detail": "Нельзя удалить собственную учетную запись."},
+                status=status.HTTP_400_BAD_REQUEST,
+            )
+        return super().destroy(request, *args, **kwargs)
+
     @decorators.action(detail=False, methods=["get"])
     def executors(self, request):
         users = self.get_queryset().filter(profile__role=UserProfile.ROLE_EXECUTOR, is_active=True)
@@ -200,6 +210,15 @@ class CampaignViewSet(viewsets.ModelViewSet):
             return queryset.filter(executor=self.request.user)
         return queryset
 
+    def destroy(self, request, *args, **kwargs):
+        campaign = self.get_object()
+        if campaign.status.is_terminal:
+            return response.Response(
+                {"detail": "Завершенную или отмененную кампанию нельзя удалить."},
+                status=status.HTTP_400_BAD_REQUEST,
+            )
+        return super().destroy(request, *args, **kwargs)
+
 
 class ActivityViewSet(viewsets.ModelViewSet):
     pagination_class = StandardResultsSetPagination
@@ -225,8 +244,6 @@ class ActivityViewSet(viewsets.ModelViewSet):
     @decorators.action(detail=True, methods=["post"], url_path="collect-metrics")
     def collect_metrics(self, request, pk=None):
         activity = self.get_object()
-        # API-сбор разрешен только для источников типа API и только после того,
-        # как исполнитель добавил ссылку на пост/результат активности.
         if activity.metric_source.type != MetricSource.TYPE_API:
             return response.Response(
                 {"detail": "Автосбор доступен только для источников типа API."},
@@ -278,6 +295,11 @@ class ActivityViewSet(viewsets.ModelViewSet):
         )
 
 
+def ensure_activity_is_not_terminal(activity, message):
+    if activity and activity.status.is_terminal:
+        raise ValidationError({"detail": message})
+
+
 class ActivityResultViewSet(viewsets.ModelViewSet):
     pagination_class = StandardResultsSetPagination
     queryset = ActivityResult.objects.select_related("activity", "activity__campaign")
@@ -290,6 +312,13 @@ class ActivityResultViewSet(viewsets.ModelViewSet):
         if user_role(self.request.user) == "executor":
             return queryset.filter(activity__campaign__executor=self.request.user)
         return queryset
+
+    def perform_destroy(self, instance):
+        ensure_activity_is_not_terminal(
+            instance.activity,
+            "У закрытой активности нельзя удалять результат.",
+        )
+        super().perform_destroy(instance)
 
 
 class ActivityMediaViewSet(viewsets.ModelViewSet):
@@ -305,6 +334,13 @@ class ActivityMediaViewSet(viewsets.ModelViewSet):
         if user_role(self.request.user) == "executor":
             return queryset.filter(activity__campaign__executor=self.request.user)
         return queryset
+
+    def perform_destroy(self, instance):
+        ensure_activity_is_not_terminal(
+            instance.activity,
+            "У закрытой активности нельзя удалять файлы.",
+        )
+        super().perform_destroy(instance)
 
     def open_media_file(self):
         media = self.get_object()
@@ -356,6 +392,13 @@ class MetricValueViewSet(viewsets.ModelViewSet):
             return queryset.filter(activity__campaign__executor=self.request.user)
         return queryset
 
+    def perform_destroy(self, instance):
+        ensure_activity_is_not_terminal(
+            instance.activity,
+            "У закрытой активности нельзя удалять метрики.",
+        )
+        super().perform_destroy(instance)
+
 
 class ReportViewSet(viewsets.ModelViewSet):
     pagination_class = StandardResultsSetPagination
@@ -366,9 +409,7 @@ class ReportViewSet(viewsets.ModelViewSet):
 
     def get_queryset(self):
         queryset = super().get_queryset()
-        # Администратор контролирует все сформированные отчеты. Остальные роли
-        # видят и скачивают только отчеты, созданные собственной учетной записью.
-        if user_role(self.request.user) != UserProfile.ROLE_ADMIN:
+        if user_role(self.request.user) not in [UserProfile.ROLE_ADMIN, UserProfile.ROLE_HEAD]:
             queryset = queryset.filter(generated_by=self.request.user)
         return queryset
 
@@ -641,3 +682,4 @@ class PasswordChangeView(APIView):
         request.user.set_password(serializer.validated_data["new_password"])
         request.user.save(update_fields=["password"])
         return response.Response({"detail": "Пароль изменён."})
+
