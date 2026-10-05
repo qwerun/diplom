@@ -1900,8 +1900,8 @@ h1 {
 
   .table-wrap td {
     display: grid;
-    grid-template-columns: minmax(110px, 38%) minmax(0, 1fr);
-    gap: 12px;
+    grid-template-columns: 1fr;
+    gap: 5px;
     padding: 11px 13px;
     border-bottom: 1px solid #eef2f6;
     white-space: normal;
@@ -1915,9 +1915,10 @@ h1 {
   .table-wrap td::before {
     content: attr(data-label);
     color: var(--muted);
-    font-size: 12px;
+    font-size: 11px;
     font-weight: 800;
-    letter-spacing: 0.02em;
+    line-height: 1.2;
+    letter-spacing: 0.03em;
     text-transform: uppercase;
   }
 
@@ -2015,7 +2016,37 @@ h1 {
   }
 
   .campaigns-list-panel td {
-    grid-template-columns: minmax(92px, 34%) minmax(0, 1fr);
-    padding: 11px 13px;
+    grid-template-columns: 1fr;
+    padding: 12px 14px;
   }
 }
+
+@media (max-width: 640px) {
+  .table-wrap tr {
+    margin-bottom: 12px;
+  }
+
+  .table-wrap td {
+    min-width: 0;
+  }
+
+  .table-wrap td > * {
+    min-width: 0;
+  }
+
+  .campaigns-list-panel td {
+    font-size: 15px;
+    line-height: 1.35;
+  }
+
+  .campaigns-list-panel td:first-child {
+    font-size: 16px;
+    font-weight: 800;
+  }
+
+  .campaigns-list-panel td::before {
+    white-space: normal;
+    overflow-wrap: normal;
+  }
+}
+
